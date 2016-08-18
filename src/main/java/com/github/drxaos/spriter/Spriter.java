@@ -101,7 +101,7 @@ public class Spriter extends JFrame implements Runnable {
             @Override
             public void mouseClicked(MouseEvent e) {
                 Point wp = screenToWorld(e.getX(), e.getY());
-                control.c.set(wp);
+                control.c.set(new Click(wp, e.getButton()));
             }
         });
         canvas.setFocusTraversalKeysEnabled(false);
@@ -470,6 +470,12 @@ public class Spriter extends JFrame implements Runnable {
             return this;
         }
 
+        public Sprite setPos(Point point) {
+            setX(point.getX());
+            setY(point.getY());
+            return this;
+        }
+
         public Sprite setAngle(double a) {
             this.a.set(a);
             return this;
@@ -543,7 +549,6 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
-
     public class Point {
         final double x, y;
 
@@ -561,12 +566,31 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
+    public class Click extends Point {
+
+        final int button;
+
+        public Click(double x, double y, int button) {
+            super(x, y);
+            this.button = button;
+        }
+
+        public Click(Point point, int button) {
+            super(point.getX(), point.getY());
+            this.button = button;
+        }
+
+        public int getButton() {
+            return button;
+        }
+    }
+
     public class Control {
 
         AtomicReference<Double>
                 mx = new AtomicReference<Double>(0d),
                 my = new AtomicReference<Double>(0d);
-        AtomicReference<Spriter.Point> c = new AtomicReference<>();
+        AtomicReference<Spriter.Click> c = new AtomicReference<>();
 
         Map<Integer, AtomicBoolean> buttons = new HashMap<>();
         Map<Integer, AtomicBoolean> keys = new HashMap<>();
@@ -579,7 +603,11 @@ public class Spriter extends JFrame implements Runnable {
             return my.get();
         }
 
-        public Spriter.Point getClick() {
+        public Point getMousePos() {
+            return new Point(getMouseX(), getMouseY());
+        }
+
+        public Spriter.Click getClick() {
             return c.getAndSet(null);
         }
 

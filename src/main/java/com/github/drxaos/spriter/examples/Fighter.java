@@ -1,12 +1,10 @@
 package com.github.drxaos.spriter.examples;
 
-import com.github.drxaos.spriter.Sprite;
-import com.github.drxaos.spriter.SpriterControl;
-import com.github.drxaos.spriter.SpriterPoint;
-import com.github.drxaos.spriter.SpriterWindow;
+import com.github.drxaos.spriter.Spriter;
 
 import javax.imageio.ImageIO;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 
 public class Fighter {
@@ -16,22 +14,20 @@ public class Fighter {
     public static final int LAYER_HL = 900;
     public static final int LAYER_HUD = 1000;
 
+    public static BufferedImage loadImage(String name) throws IOException {
+        return ImageIO.read(Fighter.class.getResource(name));
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        SpriterWindow window = new SpriterWindow("Test");
-        Sprite cur1 = new Sprite(ImageIO.read(Fighter.class.getResource("/cur1.png")), 7, 7, 0.256 * 0.3, 0.256 * 0.3, LAYER_HUD);
-        Sprite cur2 = new Sprite(ImageIO.read(Fighter.class.getResource("/cur2.png")), 7, 7, 0.256 * 0.3, 0.256 * 0.3, LAYER_HUD);
-        Sprite fighter = new Sprite(ImageIO.read(Fighter.class.getResource("/fighter-01.png")), 720 / 2, 713 / 2, 0.720 * 0.3, 0.713 * 0.3, LAYER_OBJ);
-        Sprite target1 = new Sprite(ImageIO.read(Fighter.class.getResource("/target.png")), 125, 125, 0.1, 0.1, LAYER_OBJ);
-        Sprite target2 = new Sprite(ImageIO.read(Fighter.class.getResource("/target.png")), 125, 125, 0.1, 0.1, LAYER_OBJ);
-        Sprite point = new Sprite(ImageIO.read(Fighter.class.getResource("/point.png")), 1280 / 2, 1280 / 2, 0.1280, 0.1280, LAYER_OBJ);
-        window.addSprite(cur1);
-        window.addSprite(cur2);
-        window.addSprite(point);
-        window.addSprite(fighter);
-        window.addSprite(target1);
-        window.addSprite(target2);
-        SpriterControl control = window.getControl();
+        Spriter spriter = new Spriter("Test");
+        Spriter.Sprite cur1 = spriter.createSprite(loadImage("/cur1.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
+        Spriter.Sprite cur2 = spriter.createSprite(loadImage("/cur2.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
+        Spriter.Sprite fighter = spriter.createSprite(loadImage("/fighter-01.png"), 720 / 2, 713 / 2, 0.25).setLayer(LAYER_OBJ);
+        Spriter.Sprite target1 = spriter.createSprite(loadImage("/target.png"), 125, 125, 0.1).setLayer(LAYER_OBJ);
+        Spriter.Sprite target2 = target1.createGhost();
+        Spriter.Sprite point = spriter.createSprite(loadImage("/point.png"), 1280 / 2, 1280 / 2, 1).setLayer(LAYER_OBJ);
+        Spriter.Control control = spriter.getControl();
 
         point.setVisible(false);
         int pointSize = 0;
@@ -45,7 +41,7 @@ public class Fighter {
             cur1.setVisible(!control.isButtonDown(MouseEvent.BUTTON1));
             cur2.setVisible(control.isButtonDown(MouseEvent.BUTTON1));
 
-            SpriterPoint click = control.getClick();
+            Spriter.Point click = control.getClick();
             if (click != null) {
                 pointSize = 0;
                 point.setVisible(true);
@@ -68,6 +64,7 @@ public class Fighter {
 
             target1.setX(x);
             target2.setY(y);
+
             Thread.sleep(40);
         }
     }

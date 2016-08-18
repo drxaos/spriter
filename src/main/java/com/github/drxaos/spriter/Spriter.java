@@ -7,11 +7,14 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class SpriterWindow extends JFrame implements Runnable {
+public class Spriter extends JFrame implements Runnable {
 
     boolean isRunning = true;
 
@@ -24,7 +27,7 @@ public class SpriterWindow extends JFrame implements Runnable {
 
     GraphicsConfiguration config;
 
-    SpriterControl control;
+    Control control;
 
     ArrayList<Sprite> sprites = new ArrayList<Sprite>();
 
@@ -38,15 +41,15 @@ public class SpriterWindow extends JFrame implements Runnable {
         System.setProperty("sun.awt.noerasebackground", "true");
     }
 
-    public synchronized SpriterControl getControl() {
+    public synchronized Control getControl() {
         return control;
     }
 
-    public final BufferedImage create(final int width, final int height, final boolean alpha) {
+    final BufferedImage create(final int width, final int height, final boolean alpha) {
         return config.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
     }
 
-    public SpriterWindow(String title) {
+    public Spriter(String title) {
         super(title);
 
         addWindowListener(new FrameClose());
@@ -62,12 +65,12 @@ public class SpriterWindow extends JFrame implements Runnable {
         });
 
         BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0), "blank cursor");
+        Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new java.awt.Point(0, 0), "blank cursor");
         getContentPane().setCursor(blankCursor);
 
         config = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 
-        control = new SpriterControl(this);
+        control = new Control();
 
         // Canvas
         canvas = new Canvas(config);
@@ -97,7 +100,7 @@ public class SpriterWindow extends JFrame implements Runnable {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                SpriterPoint wp = screenToWorld(e.getX(), e.getY());
+                Point wp = screenToWorld(e.getX(), e.getY());
                 control.c.set(wp);
             }
         });
@@ -132,7 +135,7 @@ public class SpriterWindow extends JFrame implements Runnable {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                SpriterPoint wp = screenToWorld(e.getX(), e.getY());
+                Point wp = screenToWorld(e.getX(), e.getY());
                 control.mx.set(wp.getX());
                 control.my.set(wp.getY());
             }
@@ -223,7 +226,7 @@ public class SpriterWindow extends JFrame implements Runnable {
         }
     }
 
-    SpriterPoint screenToWorld(int screenX, int screenY) {
+    Point screenToWorld(int screenX, int screenY) {
         double width = canvas.getWidth();
         double height = canvas.getHeight();
         double vpWidth = viewportWidth.get();
@@ -241,10 +244,10 @@ public class SpriterWindow extends JFrame implements Runnable {
         worldX = worldX < -vpWidth / 2 ? -vpWidth / 2 : worldX;
         worldY = worldY < -vpHeight / 2 ? -vpHeight / 2 : worldY;
 
-        return new SpriterPoint(worldX, worldY);
+        return new Point(worldX, worldY);
     }
 
-    SpriterPoint worldToScreen(int worldX, int worldY) {
+    Point worldToScreen(int worldX, int worldY) {
         double width = canvas.getWidth();
         double height = canvas.getHeight();
         double vpWidth = viewportWidth.get();
@@ -257,7 +260,7 @@ public class SpriterWindow extends JFrame implements Runnable {
         double screenX = (width / 2) + worldX * size;
         double screenY = (height / 2) + worldY * size;
 
-        return new SpriterPoint(screenX, screenY);
+        return new Point(screenX, screenY);
     }
 
     private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
@@ -298,6 +301,10 @@ public class SpriterWindow extends JFrame implements Runnable {
                 int iw = (int) (size * sprite.w.get());
                 int ih = (int) (size * sprite.h.get());
 
+                if (iw < 1 || ih < 1) {
+                    continue;
+                }
+
                 if (sprite.a.get() != 0) {
                     AffineTransform trans = new AffineTransform();
                     trans.translate(ix, iy);
@@ -322,6 +329,58 @@ public class SpriterWindow extends JFrame implements Runnable {
         g.fillRect(0, (int) (height - brdy), width, height);
     }
 
+    static BufferedImage getScaledInstance(BufferedImage img,
+                                           int targetWidth,
+                                           int targetHeight,
+                                           Object hint) {
+        int type = (img.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
+        BufferedImage ret = img;
+        int w = img.getWidth();
+        int h = img.getHeight();
+        boolean scaleDownW = w >= targetWidth;
+        boolean scaleDownH = h >= targetHeight;
+
+        do {
+            if (scaleDownW && w > targetWidth) {
+                w /= 2;
+                if (w < targetWidth) {
+                    w = targetWidth;
+                }
+            }
+
+            if (scaleDownH && h > targetHeight) {
+                h /= 2;
+                if (h < targetHeight) {
+                    h = targetHeight;
+                }
+            }
+
+            if (!scaleDownW && w < targetWidth) {
+                w *= 2;
+                if (w > targetWidth) {
+                    w = targetWidth;
+                }
+            }
+
+            if (!scaleDownH && h < targetHeight) {
+                h *= 2;
+                if (h > targetHeight) {
+                    h = targetHeight;
+                }
+            }
+
+            BufferedImage tmp = new BufferedImage(w, h, type);
+            Graphics2D g2 = tmp.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+            g2.drawImage(ret, 0, 0, w, h, null);
+            g2.dispose();
+
+            ret = tmp;
+        } while (w != targetWidth || h != targetHeight);
+
+        return ret;
+    }
+
     public void setViewportWidth(double viewportWidth) {
         this.viewportWidth.set(viewportWidth);
     }
@@ -330,7 +389,230 @@ public class SpriterWindow extends JFrame implements Runnable {
         this.viewportHeight.set(viewportHeight);
     }
 
-    public void addSprite(Sprite sprite) {
+    public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth, double objectHeight) {
+        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, objectWidth, objectHeight);
         sprites.add(sprite);
+        return sprite;
     }
+
+    public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth) {
+        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, objectWidth, -1d);
+        sprites.add(sprite);
+        return sprite;
+    }
+
+    public class Sprite {
+
+        AtomicReference<Double> x, y, a, w, h, dx, dy;
+
+        BufferedImage img;
+        private BufferedImage scaledImg;
+        int imgW, imgH;
+        double imgCX, imgCY;
+        AtomicInteger layer;
+        AtomicBoolean visible;
+
+        Sprite() {
+            imgW = 0;
+            imgH = 0;
+        }
+
+        public Sprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth, double objectHeight) {
+            this.img = image;
+            this.imgW = img.getWidth();
+            this.imgH = img.getHeight();
+            this.imgCX = imageCenterX;
+            this.imgCY = imageCenterY;
+
+            if (objectHeight < 0) {
+                objectHeight = objectWidth * imgH / imgW;
+            }
+
+            this.x = new AtomicReference<Double>(0d);
+            this.y = new AtomicReference<Double>(0d);
+            this.a = new AtomicReference<Double>(0d);
+            this.w = new AtomicReference<Double>(0d);
+            this.h = new AtomicReference<Double>(0d);
+            this.dx = new AtomicReference<Double>(0d);
+            this.dy = new AtomicReference<Double>(0d);
+            this.layer = new AtomicInteger(1);
+            this.visible = new AtomicBoolean(true);
+
+            this.w.set(objectWidth);
+            this.h.set(objectHeight);
+            this.dx.set(-(objectWidth * imageCenterX / imgW));
+            this.dy.set(-(objectHeight * imageCenterY / imgH));
+        }
+
+        public Sprite setLayer(int layer) {
+            this.layer.set(layer);
+            return this;
+        }
+
+        public Sprite setVisible(boolean visible) {
+            this.visible.set(visible);
+            return this;
+        }
+
+        public Sprite setX(double x) {
+            this.x.set(x);
+            return this;
+        }
+
+        public Sprite setY(double y) {
+            this.y.set(y);
+            return this;
+        }
+
+        public Sprite setPos(double x, double y) {
+            setX(x);
+            setY(y);
+            return this;
+        }
+
+        public Sprite setAngle(double a) {
+            this.a.set(a);
+            return this;
+        }
+
+        public Sprite setWidth(double w) {
+            this.w.set(w);
+            this.dx.set(-(w * imgCX / imgW));
+            return this;
+        }
+
+        public Sprite setHeight(double h) {
+            this.h.set(h);
+            this.dy.set(-(h * imgCY / imgH));
+            return this;
+        }
+
+        public Sprite setSide(double wh) {
+            setWidth(wh);
+            setHeight(wh);
+            return this;
+        }
+
+        BufferedImage getScaled(int targetWidth, int targetHeight) {
+            if (scaledImg == null || targetWidth != scaledImg.getWidth() || targetHeight != scaledImg.getHeight()) {
+                scaledImg = getScaledInstance(img, targetWidth, targetHeight, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            }
+            return scaledImg;
+        }
+
+        public Sprite createGhost() {
+            SpriteGhost ghost = new SpriteGhost(this);
+            sprites.add(ghost);
+            return ghost;
+        }
+
+        public Sprite clone() {
+            Sprite sprite = new Sprite(img, imgCX, imgCY, w.get(), h.get());
+            sprites.add(sprite);
+            return sprite;
+        }
+    }
+
+    public class SpriteGhost extends Sprite {
+        Sprite sprite;
+
+        public SpriteGhost(Sprite sprite) {
+            this.sprite = sprite;
+
+            img = sprite.img;
+            imgW = sprite.imgW;
+            imgH = sprite.imgH;
+            imgCX = sprite.imgCX;
+            imgCY = sprite.imgCY;
+
+            this.x = new AtomicReference<Double>(sprite.x.get());
+            this.y = new AtomicReference<Double>(sprite.y.get());
+            this.a = new AtomicReference<Double>(sprite.a.get());
+
+            this.w = sprite.w;
+            this.h = sprite.h;
+            this.dx = sprite.dx;
+            this.dy = sprite.dy;
+            this.layer = new AtomicInteger(sprite.layer.get());
+            this.visible = new AtomicBoolean(sprite.visible.get());
+        }
+
+        @Override
+        public BufferedImage getScaled(int targetWidth, int targetHeight) {
+            return sprite.getScaled(targetWidth, targetHeight);
+        }
+    }
+
+
+    public class Point {
+        final double x, y;
+
+        public Point(double x, double y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        public double getX() {
+            return x;
+        }
+
+        public double getY() {
+            return y;
+        }
+    }
+
+    public class Control {
+
+        AtomicReference<Double>
+                mx = new AtomicReference<Double>(0d),
+                my = new AtomicReference<Double>(0d);
+        AtomicReference<Spriter.Point> c = new AtomicReference<>();
+
+        Map<Integer, AtomicBoolean> buttons = new HashMap<>();
+        Map<Integer, AtomicBoolean> keys = new HashMap<>();
+
+        public double getMouseX() {
+            return mx.get();
+        }
+
+        public double getMouseY() {
+            return my.get();
+        }
+
+        public Spriter.Point getClick() {
+            return c.getAndSet(null);
+        }
+
+        public boolean isButtonDown(int btn) {
+            AtomicBoolean b = buttons.get(btn);
+            if (b == null) {
+                return false;
+            }
+            return b.get();
+        }
+
+        public boolean isKeyDown(int key) {
+            AtomicBoolean b = keys.get(key);
+            if (b == null) {
+                return false;
+            }
+            return b.get();
+        }
+
+        public void dump() {
+            String dump = "";
+            for (Map.Entry<Integer, AtomicBoolean> entry : buttons.entrySet()) {
+                if (entry.getValue().get()) {
+                    dump += "b" + entry.getKey() + ",";
+                }
+            }
+            for (Map.Entry<Integer, AtomicBoolean> entry : keys.entrySet()) {
+                if (entry.getValue().get()) {
+                    dump += "k" + entry.getKey() + ",";
+                }
+            }
+            System.out.println(dump);
+        }
+    }
+
 }

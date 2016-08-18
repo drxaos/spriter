@@ -75,7 +75,7 @@ public class Sprite {
         this.dy.set(-(h * imgCY / imgH));
     }
 
-    public BufferedImage getTransformed(int targetWidth, int targetHeight) {
+    public BufferedImage getScaled(int targetWidth, int targetHeight) {
         if (scaledImg == null || targetWidth != scaledImg.getWidth() || targetHeight != scaledImg.getHeight()) {
             scaledImg = getScaledInstance(img, targetWidth, targetHeight, RenderingHints.VALUE_INTERPOLATION_BILINEAR, true);
         }

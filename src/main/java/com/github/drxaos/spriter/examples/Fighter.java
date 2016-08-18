@@ -13,10 +13,10 @@ public class Fighter {
 
     public static final int LAYER_BG = 0;
     public static final int LAYER_OBJ = 500;
+    public static final int LAYER_HL = 900;
     public static final int LAYER_HUD = 1000;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-
 
         SpriterWindow window = new SpriterWindow("Test");
         Sprite cur1 = new Sprite(ImageIO.read(Fighter.class.getResource("/cur1.png")), 7, 7, 0.256 * 0.3, 0.256 * 0.3, LAYER_HUD);

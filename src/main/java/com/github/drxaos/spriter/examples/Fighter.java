@@ -21,7 +21,7 @@ public class Fighter {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Test");
+        Spriter spriter = new Spriter("Fighter");
         Spriter.Sprite cur1 = spriter.createSprite(loadImage("/cur1.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
         Spriter.Sprite cur2 = spriter.createSprite(loadImage("/cur2.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
         Spriter.Sprite fighter = spriter.createSprite(loadImage("/fighter-01.png"), 720 / 2, 713 / 2, 0.25).setLayer(LAYER_AIR);

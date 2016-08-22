@@ -117,7 +117,7 @@ public class Spriter extends JFrame implements Runnable {
                 AtomicBoolean b = control.keys.get(e.getKeyCode());
                 if (b == null) {
                     b = new AtomicBoolean();
-                    control.buttons.put(e.getKeyCode(), b);
+                    control.keys.put(e.getKeyCode(), b);
                 }
                 b.set(true);
                 control.k.set(e.getKeyCode());
@@ -128,7 +128,7 @@ public class Spriter extends JFrame implements Runnable {
                 AtomicBoolean b = control.keys.get(e.getKeyCode());
                 if (b == null) {
                     b = new AtomicBoolean();
-                    control.buttons.put(e.getKeyCode(), b);
+                    control.keys.put(e.getKeyCode(), b);
                 }
                 b.set(false);
             }
@@ -333,58 +333,59 @@ public class Spriter extends JFrame implements Runnable {
 
         for (Integer l : layers.keySet()) {
             ArrayList<Sprite> list = layers.get(l);
+
+            nextSprite:
             for (Sprite sprite : list) {
-                Group group = sprite.group.get();
-                if (group != null) {
-                    if (!sprite.visible.get() || !group.visible.get()) {
-                        continue;
+                if (!sprite.visible.get()) {
+                    continue;
+                }
+
+                double px = 0, py = 0, pa = 0;
+
+                Sprite parent = sprite.parent.get();
+                while (parent != null) {
+                    if (!parent.visible.get()) {
+                        continue nextSprite;
                     }
 
-                    int ix = (int) (size * (sprite.x.get() + sprite.dx.get() + group.x.get()) * group.sc.get() + width / 2);
-                    int iy = (int) (size * (sprite.y.get() + sprite.dy.get() + group.y.get()) * group.sc.get() + height / 2);
-                    int iw = (int) (size * sprite.w.get() * group.sc.get());
-                    int ih = (int) (size * sprite.h.get() * group.sc.get());
+                    // rotating vector
+                    double oldX = parent.x.get();
+                    double oldY = parent.y.get();
+                    double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
+                    double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
 
-                    if (iw < 1 || ih < 1) {
-                        continue;
-                    }
+                    px += rotX;
+                    py += rotY;
+                    pa += parent.a.get();
 
-                    if (sprite.a.get() + group.a.get() != 0) {
-                        AffineTransform trans = new AffineTransform();
-                        trans.translate(ix, iy);
-                        trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
-                        trans.rotate(sprite.a.get() + group.a.get());
-                        trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
-                        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                        g.drawImage(sprite.getScaled(iw, ih), trans, null);
-                    } else {
-                        g.drawImage(sprite.getScaled(iw, ih), ix, iy, null);
-                    }
+                    parent = parent.parent.get();
+                }
+
+                // rotating vector
+                double oldX = sprite.x.get();
+                double oldY = sprite.y.get();
+                double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
+                double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
+
+                int ix = (int) (size * (px + rotX + sprite.dx.get()) + width / 2);
+                int iy = (int) (size * (py + rotY + sprite.dy.get()) + height / 2);
+                int iw = (int) (size * sprite.w.get());
+                int ih = (int) (size * sprite.h.get());
+
+                if (iw < 1 || ih < 1) {
+                    continue;
+                }
+
+                if (pa + sprite.a.get() != 0) {
+                    AffineTransform trans = new AffineTransform();
+                    trans.translate(ix, iy);
+                    trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
+                    trans.rotate(pa + sprite.a.get());
+                    trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    g.drawImage(sprite.getScaled(iw, ih), trans, null);
                 } else {
-                    if (!sprite.visible.get()) {
-                        continue;
-                    }
-
-                    int ix = (int) (size * (sprite.x.get() + sprite.dx.get()) + width / 2);
-                    int iy = (int) (size * (sprite.y.get() + sprite.dy.get()) + height / 2);
-                    int iw = (int) (size * sprite.w.get());
-                    int ih = (int) (size * sprite.h.get());
-
-                    if (iw < 1 || ih < 1) {
-                        continue;
-                    }
-
-                    if (sprite.a.get() != 0) {
-                        AffineTransform trans = new AffineTransform();
-                        trans.translate(ix, iy);
-                        trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
-                        trans.rotate(sprite.a.get());
-                        trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
-                        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                        g.drawImage(sprite.getScaled(iw, ih), trans, null);
-                    } else {
-                        g.drawImage(sprite.getScaled(iw, ih), ix, iy, null);
-                    }
+                    g.drawImage(sprite.getScaled(iw, ih), ix, iy, null);
                 }
             }
         }
@@ -470,12 +471,26 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     /**
-     * Create new sprite.
+     * Create new sprite prototype. It's invisible and has zero width and height.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth Rendering width.
+     * @return new sprite prototype
+     */
+    public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY) {
+        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, 0, 0).setVisible(false);
+        sprites.add(sprite);
+        return sprite;
+    }
+
+    /**
+     * Create new sprite.
+     *
+     * @param image        Original image of new sprite.
+     * @param imageCenterX Distance from left side to center of image.
+     * @param imageCenterY Distance from top side to center of image.
+     * @param objectWidth  Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
@@ -490,10 +505,10 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth Rendering width.
+     * @param objectWidth  Rendering width.
      * @return new sprite
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth) {
@@ -505,12 +520,12 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new animated sprite.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth Single animation frame wifth.
-     * @param frameHeight Single animation frame height.
-     * @param objectWidth Rendering width.
+     * @param frameWidth   Single animation frame wifth.
+     * @param frameHeight  Single animation frame height.
+     * @param objectWidth  Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
@@ -525,27 +540,18 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth Single animation frame wifth.
-     * @param frameHeight Single animation frame height.
-     * @param objectWidth Rendering width.
+     * @param frameWidth   Single animation frame wifth.
+     * @param frameHeight  Single animation frame height.
+     * @param objectWidth  Rendering width.
      * @return new sprite
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, -1d);
         sprites.add(sprite);
         return sprite;
-    }
-
-    public Group groupSprites(Sprite... sprites) {
-        Group group = new Group();
-        for (Sprite sprite : sprites) {
-            sprite.group.set(group);
-            sprite.layer = group.layer;
-        }
-        return group;
     }
 
     public class Sprite {
@@ -561,12 +567,11 @@ public class Spriter extends JFrame implements Runnable {
         AtomicInteger frameX, frameY;
         AtomicBoolean visible;
 
-        AtomicReference<Group> group;
+        AtomicReference<Sprite> parent;
 
         Sprite() {
             imgW = 0;
             imgH = 0;
-            group = new AtomicReference<>();
         }
 
         public Sprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth, double objectHeight) {
@@ -603,7 +608,7 @@ public class Spriter extends JFrame implements Runnable {
             this.frameX = new AtomicInteger(0);
             this.frameY = new AtomicInteger(0);
             this.visible = new AtomicBoolean(true);
-            this.group = new AtomicReference<>();
+            this.parent = new AtomicReference<>();
 
             this.w.set(objectWidth);
             this.h.set(objectHeight);
@@ -633,7 +638,7 @@ public class Spriter extends JFrame implements Runnable {
             this.frameX = new AtomicInteger(sprite.frameX.get());
             this.frameY = new AtomicInteger(sprite.frameY.get());
             this.visible = new AtomicBoolean(sprite.visible.get());
-            this.group = new AtomicReference<>();
+            this.parent = new AtomicReference<>();
         }
 
         /**
@@ -720,11 +725,31 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         /**
+         * Set new width and proportional height to sprite.
+         */
+        public Sprite setWidthProportional(double w) {
+            this.w.set(w);
+            this.dx.set(-(w * imgCX / frmW));
+            setHeight(w * frmH / frmW);
+            return this;
+        }
+
+        /**
          * Set new height of sprite.
          */
         public Sprite setHeight(double h) {
             this.h.set(h);
             this.dy.set(-(h * imgCY / frmH));
+            return this;
+        }
+
+        /**
+         * Set new height and proportional width to sprite.
+         */
+        public Sprite setHeightProportional(double h) {
+            this.h.set(h);
+            this.dy.set(-(h * imgCY / frmH));
+            setWidth(h * frmW / frmH);
             return this;
         }
 
@@ -764,6 +789,15 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setFrameRow(int row) {
             frameY.set(row);
+            return this;
+        }
+
+        /**
+         * Set parent for this sprite.
+         * Parent adds to this sprite it's coordinates and angle.
+         */
+        public Sprite setParent(Sprite parent) {
+            this.parent.set(parent);
             return this;
         }
 
@@ -819,117 +853,6 @@ public class Spriter extends JFrame implements Runnable {
         @Override
         BufferedImage getScaled(int targetWidth, int targetHeight) {
             return sprite.getScaled(targetWidth, targetHeight, frameX.get(), frameY.get());
-        }
-    }
-
-    public class Group {
-        AtomicReference<Double> x, y, a, sc;
-        AtomicInteger layer;
-        AtomicBoolean visible;
-
-        public Group() {
-            this.x = new AtomicReference<>(0d);
-            this.y = new AtomicReference<>(0d);
-            this.a = new AtomicReference<>(0d);
-            this.sc = new AtomicReference<>(0d);
-            this.visible = new AtomicBoolean(true);
-        }
-
-        /**
-         * Move group to another layer.
-         * <br/>
-         * Spriter engine draws all layers in ascending order.
-         * <br/>
-         * Default layer is 1
-         */
-        public Group setLayer(int layer) {
-            this.layer.set(layer);
-            return this;
-        }
-
-        /**
-         * Set visibility of all sprites in group.
-         * <br/>
-         * Default is true
-         */
-        public Group setVisible(boolean visible) {
-            this.visible.set(visible);
-            return this;
-        }
-
-        /**
-         * Set X coordinate of group center.
-         * <br/>
-         * Default is 0.0
-         */
-        public Group setX(double x) {
-            this.x.set(x);
-            return this;
-        }
-
-        /**
-         * Set Y coordinate of group center.
-         * <br/>
-         * Default is 0.0
-         */
-        public Group setY(double y) {
-            this.y.set(y);
-            return this;
-        }
-
-        /**
-         * Set coordinates of group center.
-         * <br/>
-         * Default is 0.0, 0.0
-         */
-        public Group setPos(double x, double y) {
-            setX(x);
-            setY(y);
-            return this;
-        }
-
-        /**
-         * Set coordinates of group center.
-         * <br/>
-         * Default is 0.0, 0.0
-         */
-        public Group setPos(Point point) {
-            setX(point.getX());
-            setY(point.getY());
-            return this;
-        }
-
-        /**
-         * Set angle of group.
-         * <br/>
-         * Default is 0.0
-         */
-        public Group setAngle(double a) {
-            this.a.set(a);
-            return this;
-        }
-
-        /**
-         * Set scale of group.
-         * <br/>
-         * Default is 1.0
-         */
-        public Group setScale(double sc) {
-            this.sc.set(sc);
-            return this;
-        }
-
-        /**
-         * Create a copy of group.
-         */
-        public Group clone() {
-            ArrayList<Sprite> copied = new ArrayList<>();
-            for (Sprite sprite : sprites) {
-                if (sprite.group.get() == this) {
-                    copied.add(sprite.clone());
-                }
-            }
-            return groupSprites(copied.toArray(new Sprite[0]));
         }
     }
 

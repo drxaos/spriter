@@ -8,7 +8,7 @@ public class Simple {
         Spriter spriter = new Spriter("Simple");
 
         Spriter.Sprite sprite = spriter.createSprite(
-                ImageIO.read(Animation.class.getResource("/point.png")), // load image
+                ImageIO.read(Simple.class.getResource("/point.png")), // load image
                 256 / 2, 256 / 2,   // sprite center
                 0.2                 // object size
         );

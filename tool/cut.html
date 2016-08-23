@@ -148,7 +148,7 @@
         ctx.stroke();
 
         $(".code").val(
-                "Spriter.Sprite partProto = spriter.createSpriteProto(fullSprite.getSubimage(" + left + ", " + top + ", " + (right - left) + ", " + (bottom - top) + "), " + (x - left) + ", " + (y - top) + ").setLayer(L_PART);\n"
+                "Spriter.Sprite partProto = spriter.createSpriteProto(fullSpriteSheet.getSubimage(" + left + ", " + top + ", " + (right - left) + ", " + (bottom - top) + "), " + (x - left) + ", " + (y - top) + ").setLayer(L_PART);\n"
         );
     });
 

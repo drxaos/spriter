@@ -867,7 +867,7 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
-    public class Point {
+    public static class Point {
         final double x, y;
 
         public Point(double x, double y) {

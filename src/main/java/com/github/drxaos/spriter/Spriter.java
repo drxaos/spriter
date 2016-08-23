@@ -54,6 +54,11 @@ public class Spriter extends JFrame implements Runnable {
         return config.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
     }
 
+    /**
+     * Create new Spriter window and start rendering.
+     *
+     * @param title Title of window
+     */
     public Spriter(String title) {
         super(title);
 
@@ -259,6 +264,11 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
+    /**
+     * Use bilinear interpolation.
+     * <br/>
+     * Default is true.
+     */
     public void setSmoothScaling(boolean smoothScaling) {
         this.smoothScaling = smoothScaling;
     }

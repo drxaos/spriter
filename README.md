@@ -26,4 +26,6 @@ public class Simple {
 
 ## Screenshots
 
+![CustomUI](/spriter-composition.png)
+
 ![CustomUI](/spriter-customui.png)

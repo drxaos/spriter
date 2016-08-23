@@ -24,7 +24,7 @@ public class Fighter {
         Spriter spriter = new Spriter("Fighter");
         Spriter.Sprite cur1 = spriter.createSprite(loadImage("/cur1.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
         Spriter.Sprite cur2 = spriter.createSprite(loadImage("/cur2.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
-        Spriter.Sprite fighter = spriter.createSprite(loadImage("/fighter-01.png"), 720 / 2, 713 / 2, 0.25).setLayer(LAYER_AIR);
+        Spriter.Sprite fighter = spriter.createSprite(loadImage("/fighter-01.png").getSubimage(3, 3, 713, 705), 354, 420, 0.25).setLayer(LAYER_AIR);
         Spriter.Sprite target1 = spriter.createSprite(loadImage("/target.png"), 125, 125, 0.1).setLayer(LAYER_TOP);
         Spriter.Sprite target2 = target1.createGhost();
         Spriter.Sprite point = spriter.createSprite(loadImage("/point.png"), 256 / 2, 256 / 2, 1).setLayer(LAYER_GROUND);

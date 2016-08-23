@@ -1,9 +1,10 @@
 <body>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<h3>Sprite cutter</h3>
 <input type="file" onchange="previewFile()"><br>
-<img class="sprite" src="" alt="Image">
-<canvas class='canvas' style='position: absolute'></canvas>
-<textarea class="code" rows="30" cols="100"></textarea>
+<img class="sprite" src="" alt="Image" style="display: none">
+<canvas class='canvas' style='position: absolute' style="display: none"></canvas>
+<textarea class="code" rows="3" cols="130" style="display: none"></textarea>
 
 <script>
     var canvas = $(".canvas")[0];
@@ -17,6 +18,9 @@
             preview.src = reader.result;
 
             $("input").hide();
+            $(".sprite").show();
+            $(".canvas").show();
+            $(".code").show();
 
             var width = preview.clientWidth;
             var height = preview.clientHeight;

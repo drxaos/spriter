@@ -1,0 +1,152 @@
+<body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<input type="file" onchange="previewFile()"><br>
+<img class="sprite" src="" alt="Image">
+<canvas class='canvas' style='position: absolute'></canvas>
+<textarea class="code" rows="30" cols="100"></textarea>
+
+<script>
+    var canvas = $(".canvas")[0];
+    var preview = document.querySelector('img');
+
+    function previewFile() {
+        var file = document.querySelector('input[type=file]').files[0];
+        var reader = new FileReader();
+
+        reader.addEventListener("load", function () {
+            preview.src = reader.result;
+
+            $("input").hide();
+
+            var width = preview.clientWidth;
+            var height = preview.clientHeight;
+            var left = preview.offsetLeft;
+            var top = preview.offsetTop;
+            $(canvas).css("left", left).css("top", top).css("width", width).css("height", height);
+            setTimeout(function (e) {
+                canvas.height = height;
+                canvas.width = width;
+                canvas.getContext('2d').drawImage(preview, 0, 0, width, height, 0, 0, width, height);
+            }, 10)
+
+        }, false);
+
+        if (file) {
+            reader.readAsDataURL(file);
+        }
+    }
+
+    $(canvas).click(function (e) {
+        var x = e.offsetX;
+        var y = e.offsetY;
+        var width = preview.clientWidth;
+        var height = preview.clientHeight;
+
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(preview, 0, 0, width, height, 0, 0, width, height);
+
+        // find rect
+        var left = x, top = y, right = x, bottom = y;
+        var lFound = false, rFound = false, tFound = false, bFound = false;
+        var imageData = ctx.getImageData(0, 0, width, height);
+        var pixels = imageData.data;
+        var numPixels = imageData.width * imageData.height;
+        while (true) {
+            lFound = lFound || left == 0;
+            rFound = rFound || right == width - 1;
+            tFound = tFound || top == 0;
+            bFound = bFound || bottom == height - 1;
+
+            if (lFound && rFound && tFound && bFound) {
+                break;
+            }
+
+            if (!lFound) {
+                left--;
+            }
+            if (!tFound) {
+                top--;
+            }
+            if (!rFound) {
+                right++;
+            }
+            if (!bFound) {
+                bottom++;
+            }
+
+            var a = true;
+            for (var i = left; i <= right; i++) {
+                var n = top * imageData.width + i;
+                var alpha = pixels[n * 4 + 3];
+                if (alpha > 0) {
+                    a = false;
+                    pixels[n * 4 + 3] = 255;
+                    pixels[n * 4 + 0] = 255;
+                    break;
+                }
+            }
+            tFound = a;
+
+            a = true;
+            for (var i = left; i <= right; i++) {
+                var n = bottom * imageData.width + i;
+                var alpha = pixels[n * 4 + 3];
+                if (alpha > 0) {
+                    a = false;
+                    pixels[n * 4 + 3] = 255;
+                    pixels[n * 4 + 0] = 255;
+                    break;
+                }
+            }
+            bFound = a;
+
+            a = true;
+            for (var i = top; i <= bottom; i++) {
+                var n = i * imageData.width + left;
+                var alpha = pixels[n * 4 + 3];
+                if (alpha > 0) {
+                    a = false;
+                    pixels[n * 4 + 3] = 255;
+                    pixels[n * 4 + 0] = 255;
+                    break;
+                }
+            }
+            lFound = a;
+
+            a = true;
+            for (var i = top; i <= bottom; i++) {
+                var n = i * imageData.width + right;
+                var alpha = pixels[n * 4 + 3];
+                if (alpha > 0) {
+                    a = false;
+                    pixels[n * 4 + 3] = 255;
+                    pixels[n * 4 + 0] = 255;
+                    break;
+                }
+            }
+            rFound = a;
+        }
+
+        // draw dot
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI, false);
+        ctx.fillStyle = 'yellow';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#003300';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.lineWidth = "3";
+        ctx.strokeStyle = "green";
+        ctx.rect(left, top, right - left, bottom - top);
+        ctx.stroke();
+
+        $(".code").val(
+                "Spriter.Sprite partProto = spriter.createSpriteProto(fullSprite.getSubimage(" + left + ", " + top + ", " + (right - left) + ", " + (bottom - top) + "), " + (x - left) + ", " + (y - top) + ").setLayer(L_PART);\n"
+        );
+    });
+
+</script>
+</body>

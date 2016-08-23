@@ -27,7 +27,7 @@ public class Fighter {
         Spriter.Sprite fighter = spriter.createSprite(loadImage("/fighter-01.png"), 720 / 2, 713 / 2, 0.25).setLayer(LAYER_AIR);
         Spriter.Sprite target1 = spriter.createSprite(loadImage("/target.png"), 125, 125, 0.1).setLayer(LAYER_TOP);
         Spriter.Sprite target2 = target1.createGhost();
-        Spriter.Sprite point = spriter.createSprite(loadImage("/point.png"), 1280 / 2, 1280 / 2, 1).setLayer(LAYER_GROUND);
+        Spriter.Sprite point = spriter.createSprite(loadImage("/point.png"), 256 / 2, 256 / 2, 1).setLayer(LAYER_GROUND);
         Spriter.Control control = spriter.getControl();
 
         point.setVisible(false);

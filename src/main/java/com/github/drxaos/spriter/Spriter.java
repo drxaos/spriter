@@ -24,6 +24,7 @@ public class Spriter extends JFrame implements Runnable {
     private BufferedImage background;
     private Graphics2D backgroundGraphics;
     private Graphics2D graphics;
+    private boolean smoothScaling = true;
 
     GraphicsConfiguration config;
 
@@ -258,6 +259,10 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
+    public void setSmoothScaling(boolean smoothScaling) {
+        this.smoothScaling = smoothScaling;
+    }
+
     Point screenToWorld(int screenX, int screenY) {
         double width = canvas.getWidth();
         double height = canvas.getHeight();
@@ -400,10 +405,9 @@ public class Spriter extends JFrame implements Runnable {
         g.fillRect(0, (int) (height - brdy), width, height);
     }
 
-    static BufferedImage getScaledInstance(BufferedImage img,
-                                           int targetWidth,
-                                           int targetHeight,
-                                           Object hint) {
+    BufferedImage getScaledInstance(BufferedImage img,
+                                    int targetWidth,
+                                    int targetHeight) {
         int type = (img.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
         BufferedImage ret = img;
         int w = img.getWidth();
@@ -442,7 +446,13 @@ public class Spriter extends JFrame implements Runnable {
 
             BufferedImage tmp = new BufferedImage(w, h, type);
             Graphics2D g2 = tmp.createGraphics();
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+            if (smoothScaling) {
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            } else {
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            }
             g2.drawImage(ret, 0, 0, w, h, null);
             g2.dispose();
 
@@ -473,7 +483,7 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new sprite prototype. It's invisible and has zero width and height.
      *
-     * @param image        Original image of new sprite.
+     * @param image Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
      * @return new sprite prototype
@@ -487,10 +497,10 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new sprite.
      *
-     * @param image        Original image of new sprite.
+     * @param image Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth  Rendering width.
+     * @param objectWidth Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
@@ -505,10 +515,10 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image        Original image of new sprite.
+     * @param image Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth  Rendering width.
+     * @param objectWidth Rendering width.
      * @return new sprite
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth) {
@@ -520,12 +530,12 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new animated sprite.
      *
-     * @param image        Original image of new sprite.
+     * @param image Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth   Single animation frame wifth.
-     * @param frameHeight  Single animation frame height.
-     * @param objectWidth  Rendering width.
+     * @param frameWidth Single animation frame wifth.
+     * @param frameHeight Single animation frame height.
+     * @param objectWidth Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
@@ -540,12 +550,12 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image        Original image of new sprite.
+     * @param image Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth   Single animation frame wifth.
-     * @param frameHeight  Single animation frame height.
-     * @param objectWidth  Rendering width.
+     * @param frameWidth Single animation frame wifth.
+     * @param frameHeight Single animation frame height.
+     * @param objectWidth Rendering width.
      * @return new sprite
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth) {
@@ -770,7 +780,7 @@ public class Spriter extends JFrame implements Runnable {
             BufferedImage scaledFrame = scaledImg[frameX][frameY];
             if (scaledFrame == null || targetWidth != scaledFrame.getWidth() || targetHeight != scaledFrame.getHeight()) {
                 scaledFrame = getScaledInstance(img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH),
-                        targetWidth, targetHeight, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                        targetWidth, targetHeight);
                 scaledImg[frameX][frameY] = scaledFrame;
             }
             return scaledFrame;
@@ -848,6 +858,7 @@ public class Spriter extends JFrame implements Runnable {
             this.frameX = new AtomicInteger(sprite.frameX.get());
             this.frameY = new AtomicInteger(sprite.frameY.get());
             this.visible = new AtomicBoolean(sprite.visible.get());
+            this.parent = new AtomicReference<>();
         }
 
         @Override
@@ -983,6 +994,25 @@ public class Spriter extends JFrame implements Runnable {
                 return false;
             }
             return b.get();
+        }
+
+        /**
+         * Check if any of keyboard keys from list is pressed now.
+         * <br/>
+         * Example:
+         * <pre>
+         * control.isAnyKeyDown(KeyEvent.VK_UP, KeyEvent.VK_W, KeyEvent.VK_NUMPAD8)
+         * </pre>
+         * <br/>
+         * See also {@link java.awt.event.KeyEvent}
+         */
+        public boolean isAnyKeyDown(int... keys) {
+            for (int key : keys) {
+                if (isKeyDown(key)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /**

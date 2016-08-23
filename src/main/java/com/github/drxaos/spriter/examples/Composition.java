@@ -11,12 +11,20 @@ public class Composition {
     public static final int L_TWHEEL = 500;
     public static final int L_TBODY = 501;
     public static final int L_TTURRET = 502;
+    public static final int L_TBULLET = 503;
+    public static final int L_HUD_CURSOR = 1999;
 
     public static BufferedImage loadImage(String name) throws IOException {
         return ImageIO.read(Composition.class.getResource(name));
     }
 
-    static Spriter.Sprite wheelProto, turretProto, bodyProto;
+    static Spriter.Sprite turretProto;
+    static Spriter.Sprite bulletProto;
+    static Spriter.Sprite bodyProto;
+    static Spriter.Sprite wheelFLProto;
+    static Spriter.Sprite wheelFRProto;
+    static Spriter.Sprite wheelBLProto;
+    static Spriter.Sprite wheelBRProto;
 
     static class Tank {
         Spriter.Sprite sWheelFR, sWheelFL, sWheelBR, sWheelBL,
@@ -28,15 +36,15 @@ public class Composition {
 
         public Tank() {
             sBody = bodyProto.clone().setPos(0, 0).setWidthProportional(0.2).setVisible(true);
-            sWheelFL = wheelProto.clone().setParent(sBody).setPos(-0.085, -0.08).setWidthProportional(0.06).setVisible(true);
-            sWheelFR = wheelProto.clone().setParent(sBody).setPos(0.085, -0.08).setWidthProportional(0.06).setVisible(true);
-            sWheelBL = wheelProto.clone().setParent(sBody).setPos(-0.085, 0.08).setWidthProportional(0.06).setVisible(true);
-            sWheelBR = wheelProto.clone().setParent(sBody).setPos(0.085, 0.08).setWidthProportional(0.06).setVisible(true);
+            sWheelFL = wheelFLProto.clone().setParent(sBody).setPos(-0.085, -0.08).setWidthProportional(0.06).setVisible(true);
+            sWheelFR = wheelFRProto.clone().setParent(sBody).setPos(0.085, -0.08).setWidthProportional(0.06).setVisible(true);
+            sWheelBL = wheelBLProto.clone().setParent(sBody).setPos(-0.085, 0.08).setWidthProportional(0.06).setVisible(true);
+            sWheelBR = wheelBRProto.clone().setParent(sBody).setPos(0.085, 0.08).setWidthProportional(0.06).setVisible(true);
             sTurret = turretProto.clone().setParent(sBody).setPos(0, 0.04).setWidthProportional(0.1).setVisible(true);
         }
 
         public void moveForward(double l) {
-            a += l * wheelsAngle * 15;
+            a += l * wheelsAngle * 10;
             x += Math.sin(a) * l;
             y -= Math.cos(a) * l;
             sBody.setPos(x, y).setAngle(a);
@@ -56,16 +64,24 @@ public class Composition {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        BufferedImage tankSprite = loadImage("/tank1.png");
-        BufferedImage wheelSprite = tankSprite.getSubimage(0, 0, 160, 304);
-        BufferedImage bodySprite = tankSprite.getSubimage(162, 0, 486, 584);
-        BufferedImage turretSprite = tankSprite.getSubimage(651, 5, 236, 541);
-
         Spriter spriter = new Spriter("Composition");
 
-        wheelProto = spriter.createSpriteProto(wheelSprite, 160 / 2, 304 / 2).setLayer(L_TWHEEL);
-        bodyProto = spriter.createSpriteProto(bodySprite, 486 / 2, 584 / 2).setLayer(L_TBODY);
-        turretProto = spriter.createSpriteProto(turretSprite, 236 / 2, 541 - 100).setLayer(L_TTURRET);
+        BufferedImage fullSprite = loadImage("/tank1.png");
+        BufferedImage wheelFLSprite = fullSprite.getSubimage(0, 0, 161, 304);
+        BufferedImage wheelFRSprite = fullSprite.getSubimage(169, 0, 163, 304);
+        BufferedImage wheelBLSprite = fullSprite.getSubimage(0, 305, 162, 306);
+        BufferedImage wheelBRSprite = fullSprite.getSubimage(169, 307, 163, 306);
+
+        wheelFLProto = spriter.createSpriteProto(wheelFLSprite, 80, 152).setLayer(L_TWHEEL);
+        wheelFRProto = spriter.createSpriteProto(wheelFRSprite, 80, 152).setLayer(L_TWHEEL);
+        wheelBLProto = spriter.createSpriteProto(wheelBLSprite, 80, 152).setLayer(L_TWHEEL);
+        wheelBRProto = spriter.createSpriteProto(wheelBRSprite, 80, 152).setLayer(L_TWHEEL);
+
+        bodyProto = spriter.createSpriteProto(fullSprite.getSubimage(344, 23, 486, 579), 486 / 2, 579 / 2).setLayer(L_TBODY);
+        turretProto = spriter.createSpriteProto(fullSprite.getSubimage(834, 31, 234, 533), 234 / 2, 437).setLayer(L_TTURRET);
+        bulletProto = spriter.createSpriteProto(fullSprite.getSubimage(937, 590, 48, 24), 22, 12).setLayer(L_TBULLET);
+
+        Spriter.Sprite cursor = spriter.createSprite(loadImage("/point.png"), 256 / 2, 256 / 2, 0.05).setLayer(L_HUD_CURSOR);
 
         Spriter.Control control = spriter.getControl();
 
@@ -75,12 +91,14 @@ public class Composition {
         double w = 0;
         double a = 0;
         while (true) {
+            cursor.setPos(control.getMousePos());
+
             t += 0.1;
             tank.setTurretAngle(Math.PI / 4 * Math.sin(t));
 
-            if (control.isKeyDown(KeyEvent.VK_LEFT) && w > -Math.PI / 2) {
+            if (control.isAnyKeyDown(KeyEvent.VK_LEFT, KeyEvent.VK_A, KeyEvent.VK_NUMPAD4) && w > -Math.PI / 2) {
                 w -= 0.25;
-            } else if (control.isKeyDown(KeyEvent.VK_RIGHT) && w < Math.PI / 2) {
+            } else if (control.isAnyKeyDown(KeyEvent.VK_RIGHT, KeyEvent.VK_D, KeyEvent.VK_NUMPAD6) && w < Math.PI / 2) {
                 w += 0.25;
             } else if (w < -0.05) {
                 w += 0.25;
@@ -89,10 +107,15 @@ public class Composition {
             }
             tank.setWheelsAngle(Math.PI / 6 * Math.sin(w));
 
-            if (control.isKeyDown(KeyEvent.VK_UP) && a < 0.02) {
-                a += 0.004;
-            } else if (a > 0) {
-                a -= 0.004;
+            if (control.isAnyKeyDown(KeyEvent.VK_UP, KeyEvent.VK_W, KeyEvent.VK_NUMPAD8) && a < 0.02) {
+                a += 0.002;
+            } else if (a > 0.0005) {
+                a -= 0.002;
+            }
+            if (control.isAnyKeyDown(KeyEvent.VK_DOWN, KeyEvent.VK_S, KeyEvent.VK_NUMPAD5) && a > -0.02) {
+                a -= 0.002;
+            } else if (a < -0.0005) {
+                a += 0.002;
             }
             tank.moveForward(a);
 

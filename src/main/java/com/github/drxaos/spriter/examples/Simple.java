@@ -1,14 +1,15 @@
-# Spriter
-A simple 2d sprites engine
+package com.github.drxaos.spriter.examples;
 
-## Example
-```java
+import com.github.drxaos.spriter.Spriter;
+
+import javax.imageio.ImageIO;
+
 public class Simple {
     public static void main(String[] args) throws Exception {
         Spriter spriter = new Spriter("Simple");
 
         Spriter.Sprite sprite = spriter.createSprite(
-                ImageIO.read(Animation.class.getResource("/point.png")), // load image
+                ImageIO.read(Animation.class.getResource("/point.png")),
                 256 / 2, 256 / 2,   // sprite center
                 0.2                 // object size
         );
@@ -21,9 +22,3 @@ public class Simple {
         }
     }
 }
-```
-![CustomUI](/spriter-simple.png)
-
-## Screenshots
-
-![CustomUI](/spriter-customui.png)

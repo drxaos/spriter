@@ -46,7 +46,7 @@ public class Fighter {
             if (pointSize < 8) {
                 pointSize++;
             }
-            point.setSide(0.01 * pointSize);
+            point.setSquareSide(0.01 * pointSize);
 
             a += 0.01;
             x = Math.cos(a);

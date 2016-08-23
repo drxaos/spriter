@@ -65,16 +65,6 @@ public class Spriter extends JFrame implements Runnable {
         setLayout(new BorderLayout());
         setIgnoreRepaint(true);
 
-        addComponentListener(new ComponentAdapter() {
-            public void componentResized(ComponentEvent e) {
-                resized.set(true);
-            }
-        });
-
-        BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new java.awt.Point(0, 0), "blank cursor");
-        getContentPane().setCursor(blankCursor);
-
         config = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 
         control = new Control();
@@ -83,6 +73,22 @@ public class Spriter extends JFrame implements Runnable {
         canvas = new Canvas(config);
         canvas.setIgnoreRepaint(true);
         add(canvas, BorderLayout.CENTER);
+
+        BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new java.awt.Point(0, 0), "blank cursor");
+        canvas.setCursor(blankCursor);
+
+        addComponentListener(new ComponentAdapter() {
+            public void componentResized(ComponentEvent e) {
+                resized.set(true);
+            }
+        });
+
+        canvas.addComponentListener(new ComponentAdapter() {
+            public void componentResized(ComponentEvent e) {
+                resized.set(true);
+            }
+        });
 
         canvas.addMouseListener(new MouseAdapter() {
             @Override
@@ -268,6 +274,15 @@ public class Spriter extends JFrame implements Runnable {
      */
     public void setSmoothScaling(boolean smoothScaling) {
         this.smoothScaling = smoothScaling;
+        synchronized (sprites) {
+            for (Sprite sprite : sprites) {
+                for (int x = 0; x < sprite.scaledImg.length; x++) {
+                    for (int y = 0; y < sprite.scaledImg[x].length; y++) {
+                        sprite.scaledImg[x][y] = null;
+                    }
+                }
+            }
+        }
     }
 
     Point screenToWorld(int screenX, int screenY) {
@@ -504,6 +519,24 @@ public class Spriter extends JFrame implements Runnable {
      */
     public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, 0, 0).setVisible(false);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
+        return sprite;
+    }
+
+    /**
+     * Create new sprite prototype. It's invisible and has zero width and height.
+     *
+     * @param image Original image of new sprite.
+     * @param imageCenterX Distance from left side to center of image.
+     * @param imageCenterY Distance from top side to center of image.
+     * @param frameWidth Single animation frame wifth.
+     * @param frameHeight Single animation frame height.
+     * @return new sprite prototype
+     */
+    public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
+        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, 0, 0).setVisible(false);
         synchronized (sprites) {
             sprites.add(sprite);
         }
@@ -793,7 +826,7 @@ public class Spriter extends JFrame implements Runnable {
         /**
          * Set new width and height of sprite.
          */
-        public Sprite setSide(double wh) {
+        public Sprite setSquareSide(double wh) {
             setWidth(wh);
             setHeight(wh);
             return this;

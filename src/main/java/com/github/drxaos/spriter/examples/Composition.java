@@ -4,8 +4,11 @@ import com.github.drxaos.spriter.Spriter;
 
 import javax.imageio.ImageIO;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 public class Composition {
     public static final int L_TWHEEL = 500;
@@ -25,6 +28,30 @@ public class Composition {
     static Spriter.Sprite wheelFRProto;
     static Spriter.Sprite wheelBLProto;
     static Spriter.Sprite wheelBRProto;
+
+    static class Bullet {
+        Spriter.Sprite sBullet;
+        double x, y, a, v;
+
+        public Bullet(double x, double y, double a, double v) {
+            this.x = x;
+            this.y = y;
+            this.a = a;
+            this.v = v;
+            sBullet = bulletProto.clone().setPos(x, y).setAngle(a).setWidthProportional(0.035).setVisible(true);
+        }
+
+        public boolean move() {
+            x += Math.cos(a) * v;
+            y += Math.sin(a) * v;
+            sBullet.setPos(x, y);
+            return x > -2 && x < 2 && y > -2 && y < 2;
+        }
+
+        public void destroy() {
+            sBullet.remove();
+        }
+    }
 
     static class Tank {
         Spriter.Sprite sWheelFR, sWheelFL, sWheelBR, sWheelBL,
@@ -53,7 +80,6 @@ public class Composition {
 
         public void moveTurretTo(Spriter.Point target) {
             double angle = getAngle(target);
-            System.out.println(angle);
             double ad = turretAngle - angle - Math.PI / 2;
             while (ad < Math.PI) {
                 ad += Math.PI * 2;
@@ -87,6 +113,11 @@ public class Composition {
         public double getAngle(Spriter.Point target) {
             return Math.atan2(target.getY() - y, target.getX() - x);
         }
+
+        public Bullet fire() {
+            double angle = turretAngle - Math.PI / 2 + (Math.random() - 0.5) * Math.PI / 25;
+            return new Bullet(x + Math.cos(angle) * 0.09, y + Math.sin(angle) * 0.09, angle, 0.12 + Math.random() * 0.04);
+        }
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -117,6 +148,8 @@ public class Composition {
         double t = 0;
         double w = 0;
         double a = 0;
+        double b = 0;
+        ArrayList<Bullet> bullets = new ArrayList<>();
         while (true) {
             Spriter.Point m = control.getMousePos();
             cursor.setPos(m);
@@ -145,6 +178,21 @@ public class Composition {
                 a += 0.002;
             }
             tank.moveForward(a);
+
+            if (control.isButtonDown(MouseEvent.BUTTON1) && b <= 0) {
+                bullets.add(tank.fire());
+                b = 3;
+            }
+            if (b > 0) {
+                b--;
+            }
+            for (Iterator<Bullet> iterator = bullets.iterator(); iterator.hasNext(); ) {
+                Bullet bullet = iterator.next();
+                if (!bullet.move()) {
+                    iterator.remove();
+                    bullet.destroy();
+                }
+            }
 
             Thread.sleep(50);
         }

@@ -6,10 +6,7 @@ import java.awt.event.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -323,14 +320,21 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         // fill layers
-        for (Sprite sprite : sprites) {
-            Integer l = sprite.layer.get();
-            ArrayList<Sprite> list = layers.get(l);
-            if (list == null) {
-                list = new ArrayList<>();
-                layers.put(l, list);
+        synchronized (sprites) {
+            for (Iterator<Sprite> iterator = sprites.iterator(); iterator.hasNext(); ) {
+                Sprite sprite = iterator.next();
+                if (sprite.remove.get()) {
+                    iterator.remove();
+                } else {
+                    Integer l = sprite.layer.get();
+                    ArrayList<Sprite> list = layers.get(l);
+                    if (list == null) {
+                        list = new ArrayList<>();
+                        layers.put(l, list);
+                    }
+                    list.add(sprite);
+                }
             }
-            list.add(sprite);
         }
 
         // remove ignored layers
@@ -500,7 +504,9 @@ public class Spriter extends JFrame implements Runnable {
      */
     public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, 0, 0).setVisible(false);
-        sprites.add(sprite);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
         return sprite;
     }
 
@@ -516,7 +522,9 @@ public class Spriter extends JFrame implements Runnable {
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth, double objectHeight) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, objectWidth, objectHeight);
-        sprites.add(sprite);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
         return sprite;
     }
 
@@ -533,7 +541,9 @@ public class Spriter extends JFrame implements Runnable {
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, objectWidth, -1d);
-        sprites.add(sprite);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
         return sprite;
     }
 
@@ -551,7 +561,9 @@ public class Spriter extends JFrame implements Runnable {
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth, double objectHeight) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, objectHeight);
-        sprites.add(sprite);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
         return sprite;
     }
 
@@ -570,7 +582,9 @@ public class Spriter extends JFrame implements Runnable {
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth) {
         Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, -1d);
-        sprites.add(sprite);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
         return sprite;
     }
 
@@ -586,6 +600,7 @@ public class Spriter extends JFrame implements Runnable {
         AtomicInteger layer;
         AtomicInteger frameX, frameY;
         AtomicBoolean visible;
+        AtomicBoolean remove;
 
         AtomicReference<Sprite> parent;
 
@@ -629,6 +644,7 @@ public class Spriter extends JFrame implements Runnable {
             this.frameY = new AtomicInteger(0);
             this.visible = new AtomicBoolean(true);
             this.parent = new AtomicReference<>();
+            this.remove = new AtomicBoolean(false);
 
             this.w.set(objectWidth);
             this.h.set(objectHeight);
@@ -659,6 +675,7 @@ public class Spriter extends JFrame implements Runnable {
             this.frameY = new AtomicInteger(sprite.frameY.get());
             this.visible = new AtomicBoolean(sprite.visible.get());
             this.parent = new AtomicReference<>();
+            this.remove = new AtomicBoolean(false);
         }
 
         /**
@@ -828,7 +845,9 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite createGhost() {
             SpriteGhost ghost = new SpriteGhost(this);
-            sprites.add(ghost);
+            synchronized (sprites) {
+                sprites.add(ghost);
+            }
             return ghost;
         }
 
@@ -837,8 +856,17 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite clone() {
             Sprite sprite = new Sprite(this);
-            sprites.add(sprite);
+            synchronized (sprites) {
+                sprites.add(sprite);
+            }
             return sprite;
+        }
+
+        /**
+         * Remove sprite from scene.
+         */
+        public void remove() {
+            this.remove.set(true);
         }
     }
 
@@ -869,6 +897,7 @@ public class Spriter extends JFrame implements Runnable {
             this.frameY = new AtomicInteger(sprite.frameY.get());
             this.visible = new AtomicBoolean(sprite.visible.get());
             this.parent = new AtomicReference<>();
+            this.remove = new AtomicBoolean(false);
         }
 
         @Override

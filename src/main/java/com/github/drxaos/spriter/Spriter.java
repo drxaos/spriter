@@ -51,6 +51,17 @@ public class Spriter extends JFrame implements Runnable {
         return config.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
     }
 
+    Cursor defaultCursor, blankCursor;
+
+    /**
+     * Show default system cursor inside canvas.
+     * <br/>
+     * Default is false.
+     */
+    public void setShowCursor(boolean show) {
+        canvas.setCursor(show ? defaultCursor : blankCursor);
+    }
+
     /**
      * Create new Spriter window and start rendering.
      *
@@ -75,7 +86,8 @@ public class Spriter extends JFrame implements Runnable {
         add(canvas, BorderLayout.CENTER);
 
         BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new java.awt.Point(0, 0), "blank cursor");
+        defaultCursor = canvas.getCursor();
+        blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new java.awt.Point(0, 0), "blank cursor");
         canvas.setCursor(blankCursor);
 
         addComponentListener(new ComponentAdapter() {

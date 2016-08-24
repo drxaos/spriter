@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class CustomUi {
-    public static final int L_POINT = 50;
+    public static final int L_POINT = 10;
     public static final int L_FLY = 100;
     public static final int L_HUD_CURSOR = 1999;
 
@@ -49,6 +49,7 @@ public class CustomUi {
             zf = Math.random() * 100;
             vf = Math.random() * 100;
             c = Math.random() > 0.5;
+            fSprite.setPos(x, y).setWidthProportional(z).setLayer((int) (z * 1000));
         }
 
         public void fly(Spriter.Point p) {
@@ -86,9 +87,9 @@ public class CustomUi {
             x += Math.cos(a) * v;
             y += Math.sin(a) * v;
             zf += 0.02 + Math.random() * 0.01;
-            z = (Math.cos(zf) + 2) / 50 + 0.01;
+            z = (Math.cos(zf) + 2) / 50 + 0.01; // 0.03 - 0.07
 
-            fSprite.setPos(x, y).setWidthProportional(z);
+            fSprite.setPos(x, y).setWidthProportional(z).setLayer((int) (z * 1000));
         }
 
         public void remove() {
@@ -104,13 +105,39 @@ public class CustomUi {
         StatusBar statusBar = new StatusBar();
         spriter.getContentPane().add(statusBar, BorderLayout.SOUTH);
 
-        JButton jb1 = new JButton("Add fly");
-        JButton jb3 = new JButton("Add 10 flies");
-        JButton jb2 = new JButton("Remove fly");
-        JButton jb4 = new JButton("Clear all");
-        JButton jb5 = new JButton("Smooth is ON");
-        JButton jb6 = new JButton("Exit");
+        AtomicBoolean add = new AtomicBoolean(false);
+        AtomicBoolean add10 = new AtomicBoolean(false);
+        AtomicBoolean remove = new AtomicBoolean(false);
+        AtomicBoolean clear = new AtomicBoolean(false);
+        AtomicBoolean pause = new AtomicBoolean(false);
+        AtomicBoolean smooth = new AtomicBoolean(true);
         {
+            JButton jb1 = new JButton("Add fly");
+            JButton jb3 = new JButton("Add 10 flies");
+            JButton jb2 = new JButton("Remove fly");
+            JButton jb4 = new JButton("Clear all");
+            JButton jb7 = new JButton("Pause");
+
+            JButton jb5 = new JButton("Smooth is ON");
+            JButton jb6 = new JButton("Exit");
+
+            jb1.addActionListener(e -> add.set(true));
+            jb2.addActionListener(e -> remove.set(true));
+            jb3.addActionListener(e -> add10.set(true));
+            jb4.addActionListener(e -> clear.set(true));
+            jb5.addActionListener(e -> {
+                boolean s = !smooth.get();
+                smooth.set(s);
+                spriter.setSmoothScaling(s);
+                jb5.setText(s ? "Smooth is ON" : "Smooth is OFF");
+            });
+            jb6.addActionListener(e -> System.exit(0));
+            jb7.addActionListener(e -> {
+                boolean s = !pause.get();
+                pause.set(s);
+                jb7.setText(s ? "Unpause" : "Pause");
+            });
+
             JPanel outerPanel = new JPanel(new BorderLayout());
             outerPanel.setBorder(
                     BorderFactory.createCompoundBorder(
@@ -125,6 +152,7 @@ public class CustomUi {
             panel.add(jb3);
             panel.add(jb2);
             panel.add(jb4);
+            panel.add(jb7);
             outerPanel.add(panel, BorderLayout.NORTH);
 
             JPanel panel2 = new JPanel(new GridLayout(0, 1, 10, 10));
@@ -144,33 +172,6 @@ public class CustomUi {
         flies.add(new Fly(0, 0));
         flies.add(new Fly(0, 0));
         flies.add(new Fly(0, 0));
-
-        AtomicBoolean add = new AtomicBoolean(false);
-        AtomicBoolean add10 = new AtomicBoolean(false);
-        AtomicBoolean remove = new AtomicBoolean(false);
-        AtomicBoolean clear = new AtomicBoolean(false);
-        AtomicBoolean smooth = new AtomicBoolean(true);
-        jb1.addActionListener(e -> {
-            add.set(true);
-        });
-        jb2.addActionListener(e -> {
-            remove.set(true);
-        });
-        jb3.addActionListener(e -> {
-            add10.set(true);
-        });
-        jb4.addActionListener(e -> {
-            clear.set(true);
-        });
-        jb5.addActionListener(e -> {
-            boolean s = !smooth.get();
-            smooth.set(s);
-            spriter.setSmoothScaling(s);
-            jb5.setText(s ? "Smooth is ON" : "Smooth is OFF");
-        });
-        jb6.addActionListener(e -> {
-            System.exit(0);
-        });
 
         int pointSize = 0;
         Spriter.Point m = new Spriter.Point(0, 0);
@@ -208,8 +209,10 @@ public class CustomUi {
                 flies.clear();
             }
 
-            for (Fly fly : flies) {
-                fly.fly(m);
+            if (!pause.get()) {
+                for (Fly fly : flies) {
+                    fly.fly(m);
+                }
             }
 
             Thread.sleep(20);

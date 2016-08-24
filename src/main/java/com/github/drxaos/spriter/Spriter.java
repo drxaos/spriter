@@ -585,7 +585,7 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new sprite prototype. It's invisible and has zero width and height.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
      * @return new sprite prototype
@@ -601,11 +601,11 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new sprite prototype. It's invisible and has zero width and height.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth Single animation frame wifth.
-     * @param frameHeight Single animation frame height.
+     * @param frameWidth   Single animation frame wifth.
+     * @param frameHeight  Single animation frame height.
      * @return new sprite prototype
      */
     public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
@@ -619,12 +619,12 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new font sprite prototype. It's invisible and has zero width and height.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth Single animation frame wifth.
-     * @param frameHeight Single animation frame height.
-     * @param symbols Array of symbols values in font. Example "abc\ndef\ghi".
+     * @param frameWidth   Single animation frame wifth.
+     * @param frameHeight  Single animation frame height.
+     * @param symbols      Array of symbols values in font. Example "abc\ndef\ghi".
      * @return new sprite prototype
      */
     public Font createFont(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, String symbols) {
@@ -638,10 +638,10 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new sprite.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth Rendering width.
+     * @param objectWidth  Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
@@ -658,10 +658,10 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth Rendering width.
+     * @param objectWidth  Rendering width.
      * @return new sprite
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth) {
@@ -675,12 +675,12 @@ public class Spriter extends JFrame implements Runnable {
     /**
      * Create new animated sprite.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth Single animation frame wifth.
-     * @param frameHeight Single animation frame height.
-     * @param objectWidth Rendering width.
+     * @param frameWidth   Single animation frame wifth.
+     * @param frameHeight  Single animation frame height.
+     * @param objectWidth  Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
@@ -697,12 +697,12 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image Original image of new sprite.
+     * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth Single animation frame wifth.
-     * @param frameHeight Single animation frame height.
-     * @param objectWidth Rendering width.
+     * @param frameWidth   Single animation frame wifth.
+     * @param frameHeight  Single animation frame height.
+     * @param objectWidth  Rendering width.
      * @return new sprite
      */
     public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth) {
@@ -1152,12 +1152,6 @@ public class Spriter extends JFrame implements Runnable {
         @Override
         public Font setSquareSide(double wh) {
             super.setSquareSide(wh);
-            return this;
-        }
-
-        @Override
-        public Font clone() {
-            super.clone();
             return this;
         }
 

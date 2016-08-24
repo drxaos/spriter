@@ -34,7 +34,10 @@ public class Spriter extends JFrame implements Runnable {
 
     AtomicReference<Double>
             viewportWidth = new AtomicReference<>(2d),
-            viewportHeight = new AtomicReference<>(2d);
+            viewportHeight = new AtomicReference<>(2d),
+            viewportShiftX = new AtomicReference<>(0d),
+            viewportShiftY = new AtomicReference<>(0d),
+            viewportShiftA = new AtomicReference<>(0d);
 
     static {
         System.setProperty("sun.awt.noerasebackground", "true");
@@ -386,7 +389,9 @@ public class Spriter extends JFrame implements Runnable {
                     continue;
                 }
 
-                double px = 0, py = 0, pa = 0;
+                double px = -viewportShiftX.get(),
+                        py = -viewportShiftY.get(),
+                        pa = -viewportShiftA.get();
 
                 Sprite parent = sprite.parent.get();
                 while (parent != null) {
@@ -538,6 +543,43 @@ public class Spriter extends JFrame implements Runnable {
      */
     public void setViewportHeight(double viewportHeight) {
         this.viewportHeight.set(viewportHeight);
+    }
+
+    /**
+     * Shift viewport.
+     * <br/>
+     * Default is 0.0, 0.0
+     */
+    public void setViewportShift(double shiftX, double shiftY) {
+        setViewportShiftX(shiftX);
+        setViewportShiftY(shiftY);
+    }
+
+    /**
+     * Shift viewport along X axis.
+     * <br/>
+     * Default is 0.0
+     */
+    public void setViewportShiftX(double shiftX) {
+        this.viewportShiftX.set(shiftX);
+    }
+
+    /**
+     * Shift viewport along Y axis.
+     * <br/>
+     * Default is 0.0
+     */
+    public void setViewportShiftY(double shiftY) {
+        this.viewportShiftY.set(shiftY);
+    }
+
+    /**
+     * Rotate viewport.
+     * <br/>
+     * Default is 0.0
+     */
+    public void setViewportAngle(double angle) {
+        this.viewportShiftA.set(angle);
     }
 
     /**

@@ -413,10 +413,10 @@ public class Spriter extends JFrame implements Runnable {
                 double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
                 double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
 
-                int ix = (int) (size * (px + rotX + sprite.dx.get()) + width / 2);
-                int iy = (int) (size * (py + rotY + sprite.dy.get()) + height / 2);
-                int iw = (int) (size * sprite.w.get());
-                int ih = (int) (size * sprite.h.get());
+                int ix = (int) Math.round(size * (px + rotX + sprite.dx.get()) + 0.5d * width);
+                int iy = (int) Math.round(size * (py + rotY + sprite.dy.get()) + 0.5d * height);
+                int iw = (int) Math.round(size * sprite.w.get());
+                int ih = (int) Math.round(size * sprite.h.get());
 
                 if (iw < 1 || ih < 1) {
                     continue;
@@ -425,21 +425,40 @@ public class Spriter extends JFrame implements Runnable {
                 if (pa + sprite.a.get() != 0) {
                     AffineTransform trans = new AffineTransform();
                     trans.translate(ix, iy);
+
                     trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
                     trans.rotate(pa + sprite.a.get());
                     trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
+
+                    trans.translate(sprite.w.get() / 2 * size, sprite.h.get() / 2 * size);
+                    trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
+                    trans.translate(-sprite.w.get() / 2 * size, -sprite.h.get() / 2 * size);
+
                     g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                     g.drawImage(sprite.getScaled(iw, ih), trans, null);
                 } else {
-                    g.drawImage(sprite.getScaled(iw, ih), ix, iy, null);
+                    BufferedImage scaled = sprite.getScaled(iw, ih);
+                    int rx = ix;
+                    int ry = iy;
+                    int rw = scaled.getWidth();
+                    int rh = scaled.getHeight();
+                    if (sprite.flipX.get()) {
+                        rx += rw;
+                        rw *= -1;
+                    }
+                    if (sprite.flipY.get()) {
+                        ry += rh;
+                        rh *= -1;
+                    }
+                    g.drawImage(scaled, rx, ry, rw, rh, null);
                 }
             }
         }
 
         g.setColor(Color.BLACK);
         g.setBackground(Color.BLACK);
-        double brdx = width / 2 - vpWidth / 2 * size;
-        double brdy = height / 2 - vpHeight / 2 * size;
+        double brdx = 0.5d * width - 0.5d * vpWidth * size;
+        double brdy = 0.5d * height - 0.5d * vpHeight * size;
         g.fillRect(0, 0, (int) brdx, height);
         g.fillRect((int) (width - brdx), 0, width, height);
         g.fillRect(0, 0, width, (int) (brdy));
@@ -556,6 +575,25 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     /**
+     * Create new font sprite prototype. It's invisible and has zero width and height.
+     *
+     * @param image Original image of new sprite.
+     * @param imageCenterX Distance from left side to center of image.
+     * @param imageCenterY Distance from top side to center of image.
+     * @param frameWidth Single animation frame wifth.
+     * @param frameHeight Single animation frame height.
+     * @param symbols Array of symbols values in font. Example "abc\ndef\ghi".
+     * @return new sprite prototype
+     */
+    public Font createFont(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, String symbols) {
+        Font sprite = new Font(image, imageCenterX, imageCenterY, frameWidth, frameHeight, 0, 0, symbols).setVisible(false);
+        synchronized (sprites) {
+            sprites.add(sprite);
+        }
+        return sprite;
+    }
+
+    /**
      * Create new sprite.
      *
      * @param image Original image of new sprite.
@@ -646,6 +684,7 @@ public class Spriter extends JFrame implements Runnable {
         AtomicInteger frameX, frameY;
         AtomicBoolean visible;
         AtomicBoolean remove;
+        AtomicBoolean flipX, flipY;
 
         AtomicReference<Sprite> parent;
 
@@ -690,6 +729,8 @@ public class Spriter extends JFrame implements Runnable {
             this.visible = new AtomicBoolean(true);
             this.parent = new AtomicReference<>();
             this.remove = new AtomicBoolean(false);
+            this.flipX = new AtomicBoolean(false);
+            this.flipY = new AtomicBoolean(false);
 
             this.w.set(objectWidth);
             this.h.set(objectHeight);
@@ -721,6 +762,8 @@ public class Spriter extends JFrame implements Runnable {
             this.visible = new AtomicBoolean(sprite.visible.get());
             this.parent = new AtomicReference<>();
             this.remove = new AtomicBoolean(false);
+            this.flipX = new AtomicBoolean(false);
+            this.flipY = new AtomicBoolean(false);
         }
 
         /**
@@ -742,6 +785,26 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setVisible(boolean visible) {
             this.visible.set(visible);
+            return this;
+        }
+
+        /**
+         * Make sprite flipped right to left.
+         * <br/>
+         * Default is false
+         */
+        public Sprite setFlipX(boolean flipx) {
+            this.flipX.set(flipx);
+            return this;
+        }
+
+        /**
+         * Make sprite flipped top to bottom.
+         * <br/>
+         * Default is false
+         */
+        public Sprite setFlipY(boolean flipy) {
+            this.flipY.set(flipy);
             return this;
         }
 
@@ -836,6 +899,20 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         /**
+         * Get current object width.
+         */
+        public double getWidth() {
+            return w.get();
+        }
+
+        /**
+         * Get current object height.
+         */
+        public double getHeight() {
+            return h.get();
+        }
+
+        /**
          * Set new width and height of sprite.
          */
         public Sprite setSquareSide(double wh) {
@@ -921,7 +998,7 @@ public class Spriter extends JFrame implements Runnable {
         public SpriteGhost(Sprite sprite) {
             this.sprite = sprite;
 
-            img = sprite.img;
+            img = null;
             imgW = sprite.imgW;
             imgH = sprite.imgH;
             frmH = sprite.frmH;
@@ -943,11 +1020,109 @@ public class Spriter extends JFrame implements Runnable {
             this.visible = new AtomicBoolean(sprite.visible.get());
             this.parent = new AtomicReference<>();
             this.remove = new AtomicBoolean(false);
+            this.flipX = new AtomicBoolean(sprite.flipX.get());
+            this.flipY = new AtomicBoolean(sprite.flipY.get());
         }
 
         @Override
         BufferedImage getScaled(int targetWidth, int targetHeight) {
             return sprite.getScaled(targetWidth, targetHeight, frameX.get(), frameY.get());
+        }
+    }
+
+    public class Font extends Sprite {
+        Map<Character, Point> symbolsMap;
+
+        public Font() {
+        }
+
+        public Font(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth, double objectHeight, String symbols) {
+            super(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, objectHeight);
+
+            symbolsMap = new HashMap<>();
+            int x = 0, y = 0;
+            for (char c : symbols.toCharArray()) {
+                if (c == '\n') {
+                    x = 0;
+                    y++;
+                } else {
+                    symbolsMap.put(c, new Point(x, y));
+                    x++;
+                }
+            }
+        }
+
+        public Font(Font font) {
+            super(font);
+            this.symbolsMap = font.symbolsMap;
+        }
+
+        public Sprite getChar(char c) {
+            Point point = symbolsMap.get(c);
+            if (point == null) {
+                point = new Point(0, 0);
+            }
+            return clone().setFrame((int) point.getX()).setFrameRow((int) point.getY());
+        }
+
+        @Override
+        public Font setAngle(double a) {
+            super.setAngle(a);
+            return this;
+        }
+
+        @Override
+        public Font setFlipX(boolean flipx) {
+            super.setFlipX(flipx);
+            return this;
+        }
+
+        @Override
+        public Font setFlipY(boolean flipy) {
+            super.setFlipY(flipy);
+            return this;
+        }
+
+        @Override
+        public Font setWidth(double w) {
+            super.setWidth(w);
+            return this;
+        }
+
+        @Override
+        public Font setWidthProportional(double w) {
+            super.setWidthProportional(w);
+            return this;
+        }
+
+        @Override
+        public Font setHeight(double h) {
+            super.setHeight(h);
+            return this;
+        }
+
+        @Override
+        public Font setHeightProportional(double h) {
+            super.setHeightProportional(h);
+            return this;
+        }
+
+        @Override
+        public Font setSquareSide(double wh) {
+            super.setSquareSide(wh);
+            return this;
+        }
+
+        @Override
+        public Font clone() {
+            super.clone();
+            return this;
+        }
+
+        @Override
+        public Font setVisible(boolean visible) {
+            super.setVisible(visible);
+            return this;
         }
     }
 

@@ -29,3 +29,5 @@ public class Simple {
 ![CustomUI](/spriter-composition.png)
 
 ![CustomUI](/spriter-customui.png)
+
+![CustomUI](/spriter-text.png)

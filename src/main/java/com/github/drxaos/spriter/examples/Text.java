@@ -21,7 +21,7 @@ public class Text {
         }
 
         Spriter.Font font = spriter.createFont(ImageIO.read(Animation.class.getResource("/font1.png")), 0, 0, 90, 100,
-                "?bcdef\nghijkl\nmnopqr\nstuvwx\nyz1234\n567890\n!a%$(&\n@+-).,\n=#_*").setWidthProportional(0.25);
+                "?bcdef\nghijkl\nmnopqr\nstuvwx\nyz1234\n567890\n!a%$(&\n@+-).,\n=#_* ").setWidthProportional(0.25);
         double x = -1, y = -1;
         font.getChar('t').setPos(x, y).setVisible(true);
         x += font.getWidth();

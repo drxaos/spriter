@@ -1,14 +1,14 @@
 >                         <
 > a                       <
-> A T c c c  c c c        <
->##### # # ## # # ###    c<
+> A T c c cc c c c        <
+>##### # #  # # #####    c<
 >                    #    <
 >              x x     xx <
 >       ##cc##############<
 >   #####     c c c       <
 >##          ########     <
-> ## c  x    #        ##  <
+>@## c  x    #        ##  <
 > ########## #   x ####  #<
 >   c           xx cccc#  <
->@      xx c   xxx       x<
+>       xx c   xxx       x<
 mmmmmb~dmmb~dmmmmmmb~dmmmmm

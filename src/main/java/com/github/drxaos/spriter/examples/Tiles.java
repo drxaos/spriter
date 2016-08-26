@@ -1,8 +1,6 @@
 package com.github.drxaos.spriter.examples;
 
 import com.github.drxaos.spriter.Spriter;
-import com.sun.javafx.application.PlatformImpl;
-import javafx.application.Application;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -21,6 +19,8 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 public class Tiles {
+    public static final int L_DOOR = 100;
+    public static final int L_SIGN = 100;
     public static final int L_COIN = 200;
     public static final int L_PLAYER = 300;
     public static final int L_WATER = 400;
@@ -58,6 +58,24 @@ public class Tiles {
         }
     }
 
+    static class Brick {
+        public static final int GROUND = 0;
+        public static final int ROCK = 1;
+        public static final int BOX = 2;
+        public static final int WALL = 3;
+
+        Spriter.Sprite sprite;
+        int type;
+        double x, y;
+
+        public Brick(Spriter.Sprite sprite, double x, double y, int type) {
+            this.sprite = sprite;
+            this.x = x;
+            this.y = y;
+            this.type = type;
+        }
+    }
+
     static class Water {
         Spriter.Sprite sprite0, sprite1, sprite2;
         double x, y;
@@ -82,14 +100,20 @@ public class Tiles {
 
     static class Player {
         Spriter.Sprite sprite;
-        double x, y, vx, vy;
-        int state;
+        double x, y, vx, vy, sx, sy;
+        int state, statey;
         int f;
 
         public Player(Spriter.Sprite sprite, double x, double y) {
             this.sprite = sprite;
-            this.x = x;
-            this.y = y;
+            this.x = sx = x;
+            this.y = sy = y;
+            sprite.setPos(x, y);
+        }
+
+        public void reset() {
+            x = sx;
+            y = sy;
         }
 
         public void go(int go) {
@@ -101,10 +125,10 @@ public class Tiles {
                 } else {
                     state = 0;
                 }
-            } else if (go == 1 && vx < 0.03) {
+            } else if (go == 1 && vx < 0.05) {
                 vx += 0.005;
                 state = 1;
-            } else if (go == -1 && vx > -0.03) {
+            } else if (go == -1 && vx > -0.05) {
                 vx -= 0.005;
                 state = -1;
             }
@@ -113,17 +137,50 @@ public class Tiles {
             sprite.setX(x);
         }
 
+        public void fly(int fly, double ground) {
+            if (fly == 0 && vy >= -0.01) {
+                statey = 0;
+                vy = 0;
+                if (y - ground > 0.06) {
+                    y -= 0.02;
+                } else {
+                    y = ground;
+                }
+            } else if (fly == 0 && vy < -0.01) {
+                statey = 1;
+                vy += 0.005;
+            } else {
+                if (vy < 0.15) {
+                    vy += 0.005;
+                }
+                statey = 1;
+            }
+            y += vy;
+            sprite.setY(y);
+        }
+
+        public void jump(double v) {
+            vy = v;
+        }
+
         public void animate() {
             f++;
-            if (state == 1 || state == -1) {
-                int frame = (f / 3) % 4;
-                if ((f / 3) % 8 >= 4) {
-                    frame = 3 - frame;
+            if (statey == 1) {
+                sprite.setFrame(1).setFrameRow(0);
+                if (state == 1 || state == -1) {
+                    sprite.setFlipX(state == -1);
                 }
-                sprite.setFrame(frame).setFrameRow(1).setFlipX(state == -1);
-            }
-            if (state == 0) {
-                sprite.setFrame(0).setFrameRow(0);
+            } else {
+                if (state == 1 || state == -1) {
+                    int frame = (f / 3) % 4;
+                    if ((f / 3) % 8 >= 4) {
+                        frame = 3 - frame;
+                    }
+                    sprite.setFrame(frame).setFrameRow(1).setFlipX(state == -1);
+                }
+                if (state == 0) {
+                    sprite.setFrame(0).setFrameRow(0);
+                }
             }
         }
     }
@@ -154,22 +211,23 @@ public class Tiles {
         tileProto = spriter.createSpriteProto(tilesSpriteSheet, 35, 35, 70, 70).setSquareSide(1).setLayer(L_TILE);
         playerProto = spriter.createSpriteProto(playerSpriteSheet, 72 / 2, 97, 72, 97).setWidthProportional(0.75).setLayer(L_PLAYER);
 
-        HashMap<Spriter.Point, Spriter.Sprite> bricks = new HashMap<>();
+        HashMap<Spriter.Point, Brick> bricks = new HashMap<>();
         HashMap<Spriter.Point, Coin> coins = new HashMap<>();
         HashMap<Spriter.Point, Water> water = new HashMap<>();
         Player player = null;
 
         String level = new String(Files.readAllBytes(Paths.get(Tiles.class.getResource("/level.txt").toURI())));
         int ty = -1;
+        int tx = -1;
         for (String row : level.split("\n")) {
             ty++;
-            int tx = -1;
+            tx = -1;
             for (char c : row.toCharArray()) {
                 tx++;
 
                 if (c == '@') {
                     Spriter.Sprite pl = playerProto.createGhost().setFrame(0).setFrameRow(0).setPos(tx, ty + 0.5).setVisible(true);
-                    player = new Player(pl, tx, ty);
+                    player = new Player(pl, tx, ty + 0.5);
                     continue;
                 }
 
@@ -190,6 +248,7 @@ public class Tiles {
                     case 'T':
                         fx = 8;
                         fy = 1;
+                        l = L_SIGN;
                         break;
                     case '~':
                         fx = 0;
@@ -212,10 +271,12 @@ public class Tiles {
                     case 'A':
                         fx = 5;
                         fy = 1;
+                        l = L_DOOR;
                         break;
                     case 'a':
                         fx = 6;
                         fy = 1;
+                        l = L_DOOR;
                         break;
                     case 'c':
                         fx = 0;
@@ -231,7 +292,16 @@ public class Tiles {
                     Spriter.Point p = new Spriter.Point(tx, ty);
                     Spriter.Sprite tile = tileProto.createGhost().setFrame(fx).setFrameRow(fy).setPos(p).setVisible(true).setLayer(l);
                     if (c == '#') {
-                        bricks.put(p, tile);
+                        bricks.put(p, new Brick(tile, tx, ty, Brick.ROCK));
+                    }
+                    if (c == '>' || c == '<') {
+                        bricks.put(p, new Brick(tile, tx, ty, Brick.WALL));
+                    }
+                    if (c == 'b' || c == 'd' || c == 'm') {
+                        bricks.put(p, new Brick(tile, tx, ty, Brick.GROUND));
+                    }
+                    if (c == 'x') {
+                        bricks.put(p, new Brick(tile, tx, ty, Brick.BOX));
                     }
                     if (c == 'c') {
                         coins.put(p, new Coin(tile, tx, ty));
@@ -243,14 +313,21 @@ public class Tiles {
             }
         }
 
-        for (Map.Entry<Spriter.Point, Spriter.Sprite> entry : bricks.entrySet()) {
+        for (Map.Entry<Spriter.Point, Brick> entry : bricks.entrySet()) {
+            if (entry.getValue().type != Brick.ROCK) {
+                continue;
+            }
             double x = entry.getKey().getX();
             double y = entry.getKey().getY();
             int fx = 0;
-            boolean left = bricks.containsKey(new Spriter.Point(x - 1, y));
-            boolean up = bricks.containsKey(new Spriter.Point(x, y - 1));
-            boolean down = bricks.containsKey(new Spriter.Point(x, y + 1));
-            boolean right = bricks.containsKey(new Spriter.Point(x + 1, y));
+            Brick bleft = bricks.get(new Spriter.Point(x - 1, y));
+            Brick bup = bricks.get(new Spriter.Point(x, y - 1));
+            Brick bdown = bricks.get(new Spriter.Point(x, y + 1));
+            Brick bright = bricks.get(new Spriter.Point(x + 1, y));
+            boolean left = bleft != null && bleft.type == Brick.ROCK;
+            boolean up = bup != null && bup.type == Brick.ROCK;
+            boolean down = bdown != null && bdown.type == Brick.ROCK;
+            boolean right = bright != null && bright.type == Brick.ROCK;
             if (left && right || up && down) {
                 fx = 1;
             } else if (down && !left && !right) {
@@ -270,10 +347,8 @@ public class Tiles {
             } else if (right && up) {
                 fx = 9;
             }
-            entry.getValue().setFrame(fx);
+            entry.getValue().sprite.setFrame(fx);
         }
-
-        spriter.setViewportShiftY(ty - 5 + 0.5);
 
         mediaPlayer.setCycleCount(MediaPlayer.INDEFINITE);
         mediaPlayer.setAutoPlay(true);
@@ -289,14 +364,88 @@ public class Tiles {
                 c.animate();
             }
             if (player != null) {
-                if (control.isKeyDown(KeyEvent.VK_RIGHT)) {
+
+                double pl = player.x - player.sprite.getWidth() / 2 + 0.25;
+                double pr = player.x + player.sprite.getWidth() / 2 - 0.25;
+                double plf = player.x - player.sprite.getWidth() / 2 + 0.3;
+                double prf = player.x + player.sprite.getWidth() / 2 - 0.3;
+                double plh = player.x - player.sprite.getWidth() / 2 + 0.5;
+                double prh = player.x + player.sprite.getWidth() / 2 - 0.5;
+                double pt = player.y - player.sprite.getHeight();
+                double pb = player.y;
+                double pm = player.y - player.sprite.getHeight() / 3;
+                double pml = player.x - player.sprite.getWidth() / 2 + 0.15;
+                double pmr = player.x + player.sprite.getWidth() / 2 - 0.15;
+
+                Brick dl = bricks.get(new Spriter.Point(Math.round(pl), Math.round(pb)));
+                Brick dr = bricks.get(new Spriter.Point(Math.round(pr), Math.round(pb)));
+                Brick ul = bricks.get(new Spriter.Point(Math.round(pl), Math.round(pt)));
+                Brick ur = bricks.get(new Spriter.Point(Math.round(pr), Math.round(pt)));
+                Brick ulh = bricks.get(new Spriter.Point(Math.round(plh), Math.round(pt)));
+                Brick urh = bricks.get(new Spriter.Point(Math.round(prh), Math.round(pt)));
+                Brick dlf = bricks.get(new Spriter.Point(Math.round(plf), Math.round(pb)));
+                Brick drf = bricks.get(new Spriter.Point(Math.round(prf), Math.round(pb)));
+                Brick ml = bricks.get(new Spriter.Point(Math.round(pml), Math.round(pm)));
+                Brick mr = bricks.get(new Spriter.Point(Math.round(pmr), Math.round(pm)));
+                boolean stands = false;
+                if (dl == null && dr == null) {
+                    player.fly(1, -1);
+                } else if (dl != null && dlf == null) {
+                    player.x += 0.01;
+                    player.fly(0, player.y + 0.01);
+                } else if (dr != null && drf == null) {
+                    player.x -= 0.01;
+                    player.fly(0, player.y + 0.01);
+                } else {
+                    player.fly(0, Math.round(pb) - 0.5);
+                    stands = true;
+                }
+
+                if (player.vy < 0) {
+                    if (player.vx < -0.03) {
+                        if (urh != null || ul != null) {
+                            player.vy = 0;
+                        }
+                    } else if (player.vx > 0.03) {
+                        if (ulh != null || ur != null) {
+                            player.vy = 0;
+                        }
+                    } else {
+                        if (ul != null || ur != null) {
+                            player.vy = 0;
+                        }
+                    }
+                }
+
+                if (ml != null) {
+                    player.x = ml.x + 0.5 + player.sprite.getWidth() / 2 - 0.15;
+                }
+                if (mr != null) {
+                    player.x = mr.x - 0.5 - player.sprite.getWidth() / 2 + 0.15;
+                }
+                if (control.isKeyDown(KeyEvent.VK_RIGHT) && mr == null) {
                     player.go(1);
-                } else if (control.isKeyDown(KeyEvent.VK_LEFT)) {
+                } else if (control.isKeyDown(KeyEvent.VK_LEFT) && ml == null) {
                     player.go(-1);
                 } else {
                     player.go(0);
                 }
+
+                Integer press = control.getKeyPress();
+                if (stands && press != null && press == KeyEvent.VK_UP) {
+                    player.jump(-0.095);
+                }
+
+                if (player.y > ty + 5) {
+                    player.reset();
+                }
+
                 player.animate();
+
+                double nvx = (Math.min(Math.max(5 - 0.5, player.x), tx - 5 + 0.5));
+                double nvy = (Math.min(Math.max(5 - 0.5, player.y), ty - 5 + 0.5));
+                spriter.setViewportShiftX(nvx);
+                spriter.setViewportShiftY(nvy);
             }
             Thread.sleep(30);
         }

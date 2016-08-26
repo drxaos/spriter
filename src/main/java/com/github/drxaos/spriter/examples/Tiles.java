@@ -6,6 +6,9 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 
 import javax.imageio.ImageIO;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -207,6 +210,16 @@ public class Tiles {
         final URL resource = Tiles.class.getResource("/mushroom.mp3");
         final Media media = new Media(resource.toString());
         final MediaPlayer mediaPlayer = new MediaPlayer(media);
+
+        URL jumpSound = Tiles.class.getResource("/jump.wav");
+        AudioInputStream jumpSoundStream = AudioSystem.getAudioInputStream(jumpSound);
+        Clip jumpClip = AudioSystem.getClip();
+        jumpClip.open(jumpSoundStream);
+
+        URL coinSound = Tiles.class.getResource("/coin.wav");
+        AudioInputStream coinSoundStream = AudioSystem.getAudioInputStream(coinSound);
+        Clip coinClip = AudioSystem.getClip();
+        coinClip.open(coinSoundStream);
 
         Spriter spriter = new Spriter("Tiles");
         spriter.setViewportWidth(9.75);
@@ -465,6 +478,10 @@ public class Tiles {
                 Integer press = control.getKeyPress();
                 if (stands && press != null && press == KeyEvent.VK_UP) {
                     player.jump(-0.095);
+                    jumpClip.stop();
+                    jumpClip.setMicrosecondPosition(0);
+                    jumpClip.flush();
+                    jumpClip.start();
                 }
 
                 if (player.y > ty + 5) {
@@ -478,6 +495,10 @@ public class Tiles {
                     coinsCount++;
                     n1.setFrame(coinsCount / 10);
                     n2.setFrame(coinsCount % 10);
+                    coinClip.stop();
+                    coinClip.setMicrosecondPosition(0);
+                    coinClip.flush();
+                    coinClip.start();
                 }
 
                 player.animate();

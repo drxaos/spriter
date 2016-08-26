@@ -13,7 +13,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
+import java.io.*;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -199,6 +199,27 @@ public class Tiles {
         }
     }
 
+    public static String convertStreamToString(InputStream is) throws IOException {
+        if (is != null) {
+            Writer writer = new StringWriter();
+
+            char[] buffer = new char[1024];
+            try {
+                Reader reader = new BufferedReader(
+                        new InputStreamReader(is, "UTF-8"));
+                int n;
+                while ((n = reader.read(buffer)) != -1) {
+                    writer.write(buffer, 0, n);
+                }
+            } finally {
+                is.close();
+            }
+            return writer.toString();
+        } else {
+            return "";
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
         SwingUtilities.invokeLater(() -> {
@@ -252,7 +273,7 @@ public class Tiles {
         HashMap<Spriter.Point, Water> water = new HashMap<>();
         Player player = null;
 
-        String level = new String(Files.readAllBytes(Paths.get(Tiles.class.getResource("/level.txt").toURI())));
+        String level = convertStreamToString(Tiles.class.getResource("/level.txt").openStream()).trim();
         int ty = -1;
         int tx = -1;
         for (String row : level.split("\n")) {

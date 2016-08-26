@@ -26,22 +26,33 @@ public class Tiles {
     public static final int L_WATER = 400;
     public static final int L_BOX = 450;
     public static final int L_TILE = 500;
+    public static final int L_HUD = 1000;
 
     public static BufferedImage loadImage(String name) throws IOException {
         return ImageIO.read(Tiles.class.getResource(name));
     }
 
-    static Spriter.Sprite tileProto, playerProto;
+    static Spriter.Sprite tileProto, playerProto, numbersProto, hudProto;
 
     static class Coin {
         Spriter.Sprite sprite;
         double x, y;
         int p, f;
+        boolean taken = false;
 
         public Coin(Spriter.Sprite sprite, double x, double y) {
             this.sprite = sprite;
             this.x = x;
             this.y = y;
+        }
+
+        public boolean take() {
+            if (taken) {
+                return false;
+            }
+            sprite.setVisible(false);
+            taken = true;
+            return true;
         }
 
         public void animate() {
@@ -207,9 +218,21 @@ public class Tiles {
 
         BufferedImage tilesSpriteSheet = loadImage("/tiles.png");
         BufferedImage playerSpriteSheet = loadImage("/alien.png");
+        BufferedImage numbersSpriteSheet = loadImage("/numbers.png");
+        BufferedImage hudSpriteSheet = loadImage("/hud.png");
 
         tileProto = spriter.createSpriteProto(tilesSpriteSheet, 35, 35, 70, 70).setSquareSide(1).setLayer(L_TILE);
         playerProto = spriter.createSpriteProto(playerSpriteSheet, 72 / 2, 97, 72, 97).setWidthProportional(0.75).setLayer(L_PLAYER);
+        numbersProto = spriter.createSpriteProto(numbersSpriteSheet, 15, 20, 30, 40).setWidthProportional(0.5).setLayer(L_HUD).setHud(true);
+        hudProto = spriter.createSpriteProto(hudSpriteSheet, 25, 25, 50, 50).setWidthProportional(0.7).setLayer(L_HUD).setHud(true);
+
+        hudProto.createGhost().setPos(-4.3, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        numbersProto.createGhost().setPos(-3.75, -4.3).setVisible(true).setFrame(10).setFrameRow(0);
+        Spriter.Sprite n1 = numbersProto.createGhost().setPos(-3.25, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        Spriter.Sprite n2 = numbersProto.createGhost().setPos(-2.7, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        hudProto.createGhost().setPos(4.3, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
+        hudProto.createGhost().setPos(4.0, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
+        hudProto.createGhost().setPos(3.7, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
 
         HashMap<Spriter.Point, Brick> bricks = new HashMap<>();
         HashMap<Spriter.Point, Coin> coins = new HashMap<>();
@@ -356,6 +379,8 @@ public class Tiles {
 
         Spriter.Control control = spriter.getControl();
 
+        int coinsCount = 0;
+
         while (true) {
             for (Water w : water.values()) {
                 w.animate();
@@ -371,8 +396,10 @@ public class Tiles {
                 double prf = player.x + player.sprite.getWidth() / 2 - 0.3;
                 double plh = player.x - player.sprite.getWidth() / 2 + 0.5;
                 double prh = player.x + player.sprite.getWidth() / 2 - 0.5;
-                double pt = player.y - player.sprite.getHeight();
+                double pt = player.y - player.sprite.getHeight() + 0.05;
                 double pb = player.y;
+                double pct = player.y - player.sprite.getHeight() + 0.2;
+                double pcb = player.y - 0.3;
                 double pm = player.y - player.sprite.getHeight() / 3;
                 double pml = player.x - player.sprite.getWidth() / 2 + 0.15;
                 double pmr = player.x + player.sprite.getWidth() / 2 - 0.15;
@@ -387,6 +414,10 @@ public class Tiles {
                 Brick drf = bricks.get(new Spriter.Point(Math.round(prf), Math.round(pb)));
                 Brick ml = bricks.get(new Spriter.Point(Math.round(pml), Math.round(pm)));
                 Brick mr = bricks.get(new Spriter.Point(Math.round(pmr), Math.round(pm)));
+                Coin cul = coins.get(new Spriter.Point(Math.round(pml), Math.round(pct)));
+                Coin cur = coins.get(new Spriter.Point(Math.round(pmr), Math.round(pct)));
+                Coin cdl = coins.get(new Spriter.Point(Math.round(pml), Math.round(pcb)));
+                Coin cdr = coins.get(new Spriter.Point(Math.round(pmr), Math.round(pcb)));
                 boolean stands = false;
                 if (dl == null && dr == null) {
                     player.fly(1, -1);
@@ -438,6 +469,15 @@ public class Tiles {
 
                 if (player.y > ty + 5) {
                     player.reset();
+                }
+
+                if (cul != null && cul.take() ||
+                        cur != null && cur.take() ||
+                        cdl != null && cdl.take() ||
+                        cdr != null && cdr.take()) {
+                    coinsCount++;
+                    n1.setFrame(coinsCount / 10);
+                    n2.setFrame(coinsCount % 10);
                 }
 
                 player.animate();

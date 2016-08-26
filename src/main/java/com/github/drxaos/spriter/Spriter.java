@@ -401,6 +401,10 @@ public class Spriter extends JFrame implements Runnable {
                         py = -viewportShiftY.get(),
                         pa = -viewportShiftA.get();
 
+                if (sprite.hud.get()) {
+                    px = py = pa = 0;
+                }
+
                 Sprite parent = sprite.parent.get();
                 while (parent != null) {
                     if (!parent.visible.get()) {
@@ -736,6 +740,7 @@ public class Spriter extends JFrame implements Runnable {
         AtomicInteger frameX, frameY;
         AtomicBoolean visible;
         AtomicBoolean remove;
+        AtomicBoolean hud;
         AtomicBoolean flipX, flipY;
 
         AtomicReference<Sprite> parent;
@@ -781,6 +786,7 @@ public class Spriter extends JFrame implements Runnable {
             this.visible = new AtomicBoolean(true);
             this.parent = new AtomicReference<>();
             this.remove = new AtomicBoolean(false);
+            this.hud = new AtomicBoolean(false);
             this.flipX = new AtomicBoolean(false);
             this.flipY = new AtomicBoolean(false);
 
@@ -814,6 +820,7 @@ public class Spriter extends JFrame implements Runnable {
             this.visible = new AtomicBoolean(sprite.visible.get());
             this.parent = new AtomicReference<>();
             this.remove = new AtomicBoolean(false);
+            this.hud = new AtomicBoolean(false);
             this.flipX = new AtomicBoolean(false);
             this.flipY = new AtomicBoolean(false);
         }
@@ -1042,6 +1049,14 @@ public class Spriter extends JFrame implements Runnable {
         public void remove() {
             this.remove.set(true);
         }
+
+        /**
+         * Make sprite to move with viewport.
+         */
+        public Sprite setHud(boolean hud) {
+            this.hud.set(hud);
+            return this;
+        }
     }
 
     public class SpriteGhost extends Sprite {
@@ -1072,6 +1087,7 @@ public class Spriter extends JFrame implements Runnable {
             this.visible = new AtomicBoolean(sprite.visible.get());
             this.parent = new AtomicReference<>();
             this.remove = new AtomicBoolean(false);
+            this.hud = new AtomicBoolean(sprite.hud.get());
             this.flipX = new AtomicBoolean(sprite.flipX.get());
             this.flipY = new AtomicBoolean(sprite.flipY.get());
         }
@@ -1094,6 +1110,7 @@ public class Spriter extends JFrame implements Runnable {
             ghost.visible.set(visible.get());
             ghost.parent.set(parent.get());
             ghost.remove.set(remove.get());
+            ghost.hud.set(hud.get());
             ghost.flipX.set(flipX.get());
             ghost.flipY.set(flipY.get());
 

@@ -243,12 +243,13 @@ public class Tiles {
         coinClip.open(coinSoundStream);
 
         Spriter spriter = new Spriter("Tiles");
+        spriter.setBackgroundColor(Color.decode("#D0F4F7"));
+        spriter.pause();
+
         spriter.setViewportWidth(9.75);
         spriter.setViewportHeight(9.75);
         spriter.setViewportShiftX(5 - 0.5);
         spriter.setViewportShiftY(5 - 0.5);
-
-        spriter.setBackgroundColor(Color.decode("#D0F4F7"));
 
         BufferedImage tilesSpriteSheet = loadImage("/tiles.png");
         BufferedImage playerSpriteSheet = loadImage("/alien.png");
@@ -267,6 +268,7 @@ public class Tiles {
         hudProto.createGhost().setPos(4.3, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
         hudProto.createGhost().setPos(4.0, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
         hudProto.createGhost().setPos(3.7, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
+        hudProto.createGhost().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
 
         HashMap<Spriter.Point, Brick> bricks = new HashMap<>();
         HashMap<Spriter.Point, Coin> coins = new HashMap<>();
@@ -344,6 +346,10 @@ public class Tiles {
                         fx = 0;
                         fy = 0;
                         break;
+                    case 'k':
+                        fx = 1;
+                        fy = 1;
+                        break;
                 }
                 if (fx >= 0 && fy >= 0) {
                     Spriter.Point p = new Spriter.Point(tx, ty);
@@ -415,7 +421,11 @@ public class Tiles {
 
         int coinsCount = 0;
 
+        spriter.unpause();
+
         while (true) {
+            spriter.beginFrame();
+
             for (Water w : water.values()) {
                 w.animate();
             }
@@ -529,6 +539,8 @@ public class Tiles {
                 spriter.setViewportShiftX(nvx);
                 spriter.setViewportShiftY(nvy);
             }
+
+            spriter.endFrame();
             Thread.sleep(30);
         }
     }

@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Spriter extends JFrame implements Runnable {
 
@@ -31,6 +32,11 @@ public class Spriter extends JFrame implements Runnable {
     Map<Integer, AtomicBoolean> ignoredLayers = new HashMap<>();
 
     AtomicBoolean resized = new AtomicBoolean(false);
+
+    final Object runLock = new Object();
+    final ReentrantLock renderLock = new ReentrantLock();
+    AtomicBoolean renderDone = new AtomicBoolean(false);
+    AtomicBoolean pause = new AtomicBoolean(false);
 
     AtomicReference<Double>
             viewportWidth = new AtomicReference<>(2d),
@@ -247,6 +253,40 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
+    /**
+     * Pause rendering after this call.
+     */
+    public void pause() {
+        synchronized (runLock) {
+            pause.set(true);
+        }
+    }
+
+    /**
+     * Unpause rendering.
+     */
+    public void unpause() {
+        synchronized (runLock) {
+            pause.set(false);
+        }
+    }
+
+    /**
+     * Begin modification of sprites. Spriter will wait until endFrame.
+     */
+    public void beginFrame() {
+        synchronized (runLock) {
+            renderLock.lock();
+        }
+    }
+
+    /**
+     * End modification of sprites. Spriter will render frame after this call.
+     */
+    public void endFrame() {
+        renderLock.unlock();
+    }
+
     public void run() {
         backgroundGraphics = (Graphics2D) background.getGraphics();
         long fpsWait = (long) (1.0 / 60 * 1000);
@@ -255,22 +295,30 @@ public class Spriter extends JFrame implements Runnable {
             if (isRunning) {
                 long renderStart = System.nanoTime();
 
-                if (resized.getAndSet(false)) {
-                    background = create(canvas.getWidth(), canvas.getHeight(), true);
-                    backgroundGraphics = (Graphics2D) background.getGraphics();
-                }
+                synchronized (runLock) {
+                    if (!pause.get()) {
+                        renderDone.set(false);
 
-                // Update Graphics
-                do {
-                    Graphics2D bg = getBuffer();
-                    if (!isRunning) {
-                        break main;
+                        if (resized.getAndSet(false)) {
+                            background = create(canvas.getWidth(), canvas.getHeight(), true);
+                            backgroundGraphics = (Graphics2D) background.getGraphics();
+                        }
+
+                        // Update Graphics
+                        do {
+                            Graphics2D bg = getBuffer();
+                            if (!isRunning) {
+                                break main;
+                            }
+                            render(backgroundGraphics, background.getWidth(), background.getHeight());
+                            // thingy
+                            bg.drawImage(background, 0, 0, null);
+                            bg.dispose();
+                        } while (!updateScreen());
+
+                        renderDone.set(true);
                     }
-                    render(backgroundGraphics, background.getWidth(), background.getHeight());
-                    // thingy
-                    bg.drawImage(background, 0, 0, null);
-                    bg.dispose();
-                } while (!updateScreen());
+                }
 
                 // Better do some FPS limiting here
                 long renderTime = (System.nanoTime() - renderStart) / 1000000;

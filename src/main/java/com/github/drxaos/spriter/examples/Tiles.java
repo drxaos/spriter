@@ -31,6 +31,9 @@ public class Tiles {
     public static final int L_TILE = 500;
     public static final int L_HUD = 1000;
 
+    public static final int L_SHADOW = 2000;
+    public static final int L_WIN = 2100;
+
     public static BufferedImage loadImage(String name) throws IOException {
         return ImageIO.read(Tiles.class.getResource(name));
     }
@@ -69,6 +72,48 @@ public class Tiles {
                 sprite.setFrame(0);
             }
             ;
+        }
+    }
+
+    static class Key {
+        Spriter.Sprite sprite;
+        double x, y;
+        boolean taken = false;
+
+        public Key(Spriter.Sprite sprite, double x, double y) {
+            this.sprite = sprite;
+            this.x = x;
+            this.y = y;
+        }
+
+        public boolean take() {
+            if (taken) {
+                return false;
+            }
+            sprite.setVisible(false);
+            taken = true;
+            return true;
+        }
+
+        public boolean isTaken() {
+            return taken;
+        }
+    }
+
+    static class Door {
+        Spriter.Sprite sprite, spriteTop;
+        double x, y;
+
+        public Door(Spriter.Sprite sprite, Spriter.Sprite spriteTop, double x, double y) {
+            this.sprite = sprite;
+            this.spriteTop = spriteTop;
+            this.x = x;
+            this.y = y;
+        }
+
+        public void open() {
+            sprite.setFrame(5).setFrameRow(3);
+            spriteTop.setFrame(6).setFrameRow(3);
         }
     }
 
@@ -197,6 +242,10 @@ public class Tiles {
                 }
             }
         }
+
+        public void exit(double x, double y) {
+            sprite.setPos(this.x = x, this.y = y + 0.5).setFrame(3).setFrameRow(0);
+        }
     }
 
     public static String convertStreamToString(InputStream is) throws IOException {
@@ -242,6 +291,11 @@ public class Tiles {
         Clip coinClip = AudioSystem.getClip();
         coinClip.open(coinSoundStream);
 
+        URL winSound = Tiles.class.getResource("/win.wav");
+        AudioInputStream winSoundStream = AudioSystem.getAudioInputStream(winSound);
+        Clip winClip = AudioSystem.getClip();
+        winClip.open(winSoundStream);
+
         Spriter spriter = new Spriter("Tiles");
         spriter.setBackgroundColor(Color.decode("#D0F4F7"));
         spriter.pause();
@@ -268,11 +322,14 @@ public class Tiles {
         hudProto.createGhost().setPos(4.3, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
         hudProto.createGhost().setPos(4.0, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
         hudProto.createGhost().setPos(3.7, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
-        hudProto.createGhost().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
+        Spriter.Sprite hudKey = hudProto.createGhost().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
 
         HashMap<Spriter.Point, Brick> bricks = new HashMap<>();
         HashMap<Spriter.Point, Coin> coins = new HashMap<>();
         HashMap<Spriter.Point, Water> water = new HashMap<>();
+        Key key = null;
+        Spriter.Sprite doorTop = null;
+        Door door = null;
         Player player = null;
 
         String level = convertStreamToString(Tiles.class.getResource("/level.txt").openStream()).trim();
@@ -372,6 +429,15 @@ public class Tiles {
                     if (c == '~') {
                         water.put(p, new Water(tile, tx, ty));
                     }
+                    if (c == 'k') {
+                        key = new Key(tile, tx, ty);
+                    }
+                    if (c == 'A') {
+                        door = new Door(tile, doorTop, tx, ty);
+                    }
+                    if (c == 'a') {
+                        doorTop = tile;
+                    }
                 }
             }
         }
@@ -422,6 +488,8 @@ public class Tiles {
         int coinsCount = 0;
 
         spriter.unpause();
+
+        double vx, vy;
 
         while (true) {
             spriter.beginFrame();
@@ -514,6 +582,14 @@ public class Tiles {
                     jumpClip.flush();
                     jumpClip.start();
                 }
+                if (!key.isTaken() && (key.x == Math.round(pml) || key.x == Math.round(pmr)) && (key.y == Math.round(pct) || key.y == Math.round(pct))) {
+                    key.take();
+                    hudKey.setFrame(0);
+                    coinClip.stop();
+                    coinClip.setMicrosecondPosition(0);
+                    coinClip.flush();
+                    coinClip.start();
+                }
 
                 if (player.y > ty + 5) {
                     player.reset();
@@ -534,12 +610,36 @@ public class Tiles {
 
                 player.animate();
 
-                double nvx = (Math.min(Math.max(5 - 0.5, player.x), tx - 5 + 0.5));
-                double nvy = (Math.min(Math.max(5 - 0.5, player.y), ty - 5 + 0.5));
-                spriter.setViewportShiftX(nvx);
-                spriter.setViewportShiftY(nvy);
+                vx = (Math.min(Math.max(5 - 0.5, player.x), tx - 5 + 0.5));
+                vy = (Math.min(Math.max(5 - 0.5, player.y), ty - 5 + 0.5));
+                spriter.setViewportShiftX(vx);
+                spriter.setViewportShiftY(vy);
+
+                if (key.isTaken() && Math.sqrt(Math.pow(player.x - door.x, 2) + Math.pow(player.y - 0.5 - door.y, 2)) < 0.3) {
+                    player.exit(door.x, door.y);
+                    door.open();
+                    winClip.stop();
+                    winClip.setMicrosecondPosition(0);
+                    winClip.flush();
+                    winClip.start();
+                    break;
+                }
             }
 
+            spriter.endFrame();
+            Thread.sleep(30);
+        }
+        spriter.endFrame();
+
+        BufferedImage shadow = new BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR);
+        shadow.setRGB(0, 0, 100 << 24);
+        spriter.createSprite(shadow, 0.5, 0.5, 10, 10).setLayer(L_SHADOW).setPos(vx, vy);
+        Spriter.Sprite win = spriter.createSprite(loadImage("/win.png"), 314 / 2, 139 / 2, 4).setLayer(L_WIN).setPos(vx, vy);
+
+        int f = 0;
+        while (true) {
+            spriter.beginFrame();
+            win.setWidthProportional(4 + Math.sin(0.1 * f++));
             spriter.endFrame();
             Thread.sleep(30);
         }

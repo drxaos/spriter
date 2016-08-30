@@ -24,6 +24,12 @@ public class Spriter extends JFrame implements Runnable {
     private Graphics2D graphics;
     private boolean smoothScaling = true;
 
+    private AtomicBoolean debug = new AtomicBoolean(false);
+    private int fps, rps;
+    private long fpsCounterStart = 0;
+    private AtomicInteger fpsCounter = new AtomicInteger(0);
+    private AtomicInteger rpsCounter = new AtomicInteger(0);
+
     GraphicsConfiguration config;
 
     Control control;
@@ -71,6 +77,13 @@ public class Spriter extends JFrame implements Runnable {
      */
     public void setShowCursor(boolean show) {
         canvas.setCursor(show ? defaultCursor : blankCursor);
+    }
+
+    /**
+     * Show debug info
+     */
+    public void setDebug(boolean debug) {
+        this.debug.set(debug);
     }
 
     /**
@@ -284,6 +297,7 @@ public class Spriter extends JFrame implements Runnable {
      * End modification of sprites. Spriter will render frame after this call.
      */
     public void endFrame() {
+        fpsCounter.incrementAndGet();
         renderLock.unlock();
     }
 
@@ -294,8 +308,12 @@ public class Spriter extends JFrame implements Runnable {
         while (true) {
             if (isRunning) {
                 long renderStart = System.nanoTime();
-
                 synchronized (runLock) {
+                    if (System.currentTimeMillis() - fpsCounterStart > 1000) {
+                        fps = fpsCounter.getAndSet(0);
+                        rps = rpsCounter.getAndSet(0);
+                        fpsCounterStart = System.currentTimeMillis();
+                    }
                     if (!pause.get()) {
                         renderDone.set(false);
 
@@ -341,11 +359,7 @@ public class Spriter extends JFrame implements Runnable {
         this.smoothScaling = smoothScaling;
         synchronized (sprites) {
             for (Sprite sprite : sprites) {
-                for (int x = 0; x < sprite.scaledImg.length; x++) {
-                    for (int y = 0; y < sprite.scaledImg[x].length; y++) {
-                        sprite.scaledImg[x][y] = null;
-                    }
-                }
+                sprite.renewImage();
             }
         }
     }
@@ -396,6 +410,9 @@ public class Spriter extends JFrame implements Runnable {
     private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
 
     void render(Graphics2D g, int width, int height) {
+        renderLock.lock();
+        rpsCounter.incrementAndGet();
+
         g.setColor(bg.get());
         g.setBackground(bg.get());
         g.fillRect(0, 0, width, height);
@@ -530,6 +547,19 @@ public class Spriter extends JFrame implements Runnable {
         g.fillRect((int) (width - brdx), 0, width, height);
         g.fillRect(0, 0, width, (int) (brdy));
         g.fillRect(0, (int) (height - brdy), width, height);
+
+        if (debug.get()) {
+            g.setColor(Color.WHITE);
+            g.drawString("FPS: " + fps, 0, 20);
+            g.setColor(Color.BLACK);
+            g.drawString("FPS: " + fps, 1, 21);
+            g.setColor(Color.WHITE);
+            g.drawString("RPS: " + rps, 0, 40);
+            g.setColor(Color.BLACK);
+            g.drawString("RPS: " + rps, 1, 41);
+        }
+
+        renderLock.unlock();
     }
 
     BufferedImage getScaledInstance(BufferedImage img,
@@ -1043,7 +1073,16 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         /**
-         * Set current frame of animated frame.
+         * Set current frame of animated sprite.
+         */
+        public Sprite setFrame(int n, int row) {
+            setFrame(n);
+            setFrameRow(row);
+            return this;
+        }
+
+        /**
+         * Set current frame of animated sprite.
          */
         public Sprite setFrame(int n) {
             frameX.set(n);
@@ -1051,7 +1090,7 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         /**
-         * Set current frame row of animated frame.
+         * Set current frame row of animated sprite.
          */
         public Sprite setFrameRow(int row) {
             frameY.set(row);
@@ -1103,6 +1142,18 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setHud(boolean hud) {
             this.hud.set(hud);
+            return this;
+        }
+
+        /**
+         * Notify sprite about image changes. Cached frames will be renewed.
+         */
+        public Sprite renewImage() {
+            for (int x = 0; x < scaledImg.length; x++) {
+                for (int y = 0; y < scaledImg[x].length; y++) {
+                    scaledImg[x][y] = null;
+                }
+            }
             return this;
         }
     }

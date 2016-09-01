@@ -489,8 +489,14 @@ public class Tiles {
 
         double vx, vy;
 
+        spriter.setDebug(true);
+
+        int op = 0;
         while (true) {
             spriter.beginFrame();
+
+            op++;
+            player.sprite.setAlpha(Math.abs(Math.cos(0.1 * op)));
 
             for (Water w : water.values()) {
                 w.animate();
@@ -630,16 +636,20 @@ public class Tiles {
         spriter.endFrame();
 
         BufferedImage shadowImage = new BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR);
-        shadowImage.setRGB(0, 0, 120 << 24);
-        Spriter.Sprite shadow = spriter.createSprite(shadowImage, 0.5, 0.5, 10, 10).setLayer(L_SHADOW).setHud(true);
-        Spriter.Sprite win = spriter.createSprite(loadImage("/win.png"), 314 / 2, 139 / 2, 4).setLayer(L_WIN).setHud(true);
+        shadowImage.setRGB(0, 0, 0);
+        Spriter.Sprite shadow = spriter.createSprite(shadowImage, 0.5, 0.5, 10, 10).setLayer(L_SHADOW).setHud(true).setFastScaling(true).setDisableCache(true);
+        Spriter.Sprite win = spriter.createSprite(loadImage("/win.png"), 314 / 2, 139 / 2, 4).setLayer(L_WIN).setHud(true).setFastScaling(true);
+
+        spriter.setAntialiasing(false);
+        spriter.setBilinearInterpolation(false);
 
         int f = 0;
         while (true) {
             spriter.beginFrame();
             win.setWidthProportional(4 + Math.sin(0.2 * f++));
+            shadowImage.setRGB(0, 0, Math.min(120, f) << 24);
             spriter.endFrame();
-            Thread.sleep(60);
+            Thread.sleep(30);
         }
     }
 }

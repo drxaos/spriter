@@ -30,6 +30,8 @@ public class Spriter extends JFrame implements Runnable {
     private AtomicInteger fpsCounter = new AtomicInteger(0);
     private AtomicInteger rpsCounter = new AtomicInteger(0);
 
+    private PainterChain painterChain;
+
     GraphicsConfiguration config;
 
     Control control;
@@ -120,6 +122,8 @@ public class Spriter extends JFrame implements Runnable {
         setSize(800, 800);
         setLayout(new BorderLayout());
         setIgnoreRepaint(true);
+
+        painterChain = new Renderer();
 
         config = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 
@@ -322,8 +326,26 @@ public class Spriter extends JFrame implements Runnable {
         renderLock.unlock();
     }
 
+    /**
+     * Set new head of painters chain.
+     * Default is instance of Renderer
+     */
+    public void setPainterChainHead(PainterChain head) {
+        if (head == null) {
+            throw new IllegalArgumentException("head painter must not be null");
+        }
+        this.painterChain = head;
+    }
+
+    /**
+     * Returns the head of painters chain
+     */
+    public PainterChain getPainterChainHead() {
+        return painterChain;
+    }
+
     public void run() {
-        backgroundGraphics = (Graphics2D) background.getGraphics();
+        backgroundGraphics = background.createGraphics();
         long fpsWait = (long) (1.0 / 60 * 1000);
         main:
         while (true) {
@@ -346,10 +368,18 @@ public class Spriter extends JFrame implements Runnable {
                         // Update Graphics
                         do {
                             Graphics2D bg = getBuffer();
+                            if (bg == null) {
+                                continue;
+                            }
                             if (!isRunning) {
                                 break main;
                             }
-                            render(backgroundGraphics, background.getWidth(), background.getHeight());
+
+                            renderLock.lock();
+                            rpsCounter.incrementAndGet();
+                            painterChain.chain(background, backgroundGraphics, background.getWidth(), background.getHeight());
+                            renderLock.unlock();
+
                             // thingy
                             bg.drawImage(background, 0, 0, null);
                             bg.dispose();
@@ -428,179 +458,227 @@ public class Spriter extends JFrame implements Runnable {
         }
     }
 
-    private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
+    /**
+     * Add a painter to the end of painters chain
+     */
+    public void addPostProcessor(PainterChain postProcessor) {
+        PainterChain chain = postProcessor;
+        while (chain.next != null) {
+            chain = chain.next;
+        }
+        chain.next = postProcessor;
+    }
 
-    void render(Graphics2D g, int width, int height) {
-        renderLock.lock();
-        rpsCounter.incrementAndGet();
+    abstract static public class PainterChain {
+        protected PainterChain next;
 
-        g.setColor(bg.get());
-        g.setBackground(bg.get());
-        g.fillRect(0, 0, width, height);
-
-        // clear layers
-        for (ArrayList<Sprite> list : layers.values()) {
-            list.clear();
+        public void setNext(PainterChain next) {
+            this.next = next;
         }
 
-        // fill layers
-        synchronized (sprites) {
-            for (Iterator<Sprite> iterator = sprites.iterator(); iterator.hasNext(); ) {
-                Sprite sprite = iterator.next();
-                if (sprite.remove.get()) {
-                    iterator.remove();
-                } else {
-                    Integer l = sprite.layer.get();
-                    ArrayList<Sprite> list = layers.get(l);
-                    if (list == null) {
-                        list = new ArrayList<>();
-                        layers.put(l, list);
+        public BufferedImage chain(BufferedImage img, Graphics2D g, int width, int height) {
+            BufferedImage render = render(img, g, width, height);
+            if (next == null) {
+                return render;
+            }
+            if (render != img) {
+                g = render.createGraphics();
+                width = render.getWidth();
+                height = render.getHeight();
+            }
+            return next.chain(render, g, width, height);
+        }
+
+        public BufferedImage render(BufferedImage img, Graphics2D g, int width, int height) {
+            render(g, width, height);
+            return img;
+        }
+
+        abstract public void render(Graphics2D g, int width, int height);
+    }
+
+    public class Renderer extends PainterChain {
+
+        public static final int O_FULL_TRANSFORM = 0;
+        public static final int O_SCALING_CACHE = 1;
+        public static final int O_SCALING_CACHE_AND_ANGLE_0 = 2;
+
+        int optimizationLevel = O_SCALING_CACHE_AND_ANGLE_0;
+
+        public void setOptimizationLevel(int optimizationLevel) {
+            this.optimizationLevel = optimizationLevel;
+        }
+
+        private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
+
+        public void render(Graphics2D g, int width, int height) {
+
+            g.setColor(bg.get());
+            g.setBackground(bg.get());
+            g.fillRect(0, 0, width, height);
+
+            // clear layers
+            for (ArrayList<Sprite> list : layers.values()) {
+                list.clear();
+            }
+
+            // fill layers
+            synchronized (sprites) {
+                for (Iterator<Sprite> iterator = sprites.iterator(); iterator.hasNext(); ) {
+                    Sprite sprite = iterator.next();
+                    if (sprite.remove.get()) {
+                        iterator.remove();
+                    } else {
+                        Integer l = sprite.layer.get();
+                        ArrayList<Sprite> list = layers.get(l);
+                        if (list == null) {
+                            list = new ArrayList<>();
+                            layers.put(l, list);
+                        }
+                        list.add(sprite);
                     }
-                    list.add(sprite);
                 }
             }
-        }
 
-        // remove ignored layers
-        for (Map.Entry<Integer, AtomicBoolean> entry : ignoredLayers.entrySet()) {
-            if (entry.getValue().get()) {
-                layers.get(entry.getKey()).clear();
+            // remove ignored layers
+            for (Map.Entry<Integer, AtomicBoolean> entry : ignoredLayers.entrySet()) {
+                if (entry.getValue().get()) {
+                    layers.get(entry.getKey()).clear();
+                }
             }
-        }
 
-        double vpWidth = viewportWidth.get();
-        double vpHeight = viewportHeight.get();
-        double ws = width / vpWidth;
-        double hs = height / vpHeight;
-        double size = ws > hs ? hs : ws;
+            double vpWidth = viewportWidth.get();
+            double vpHeight = viewportHeight.get();
+            double ws = width / vpWidth;
+            double hs = height / vpHeight;
+            double size = ws > hs ? hs : ws;
 
-        for (Integer l : layers.keySet()) {
-            ArrayList<Sprite> list = layers.get(l);
+            for (Integer l : layers.keySet()) {
+                ArrayList<Sprite> list = layers.get(l);
 
-            nextSprite:
-            for (Sprite sprite : list) {
-                if (!sprite.visible.get()) {
-                    continue;
-                }
+                nextSprite:
+                for (Sprite sprite : list) {
+                    if (!sprite.visible.get()) {
+                        continue;
+                    }
 
-                double px = -viewportShiftX.get(),
-                        py = -viewportShiftY.get(),
-                        pa = -viewportShiftA.get();
+                    double px = -viewportShiftX.get(),
+                            py = -viewportShiftY.get(),
+                            pa = -viewportShiftA.get();
 
-                if (sprite.hud.get()) {
-                    px = py = pa = 0;
-                }
+                    if (sprite.hud.get()) {
+                        px = py = pa = 0;
+                    }
 
-                Sprite parent = sprite.parent.get();
-                while (parent != null) {
-                    if (!parent.visible.get()) {
-                        continue nextSprite;
+                    Sprite parent = sprite.parent.get();
+                    while (parent != null) {
+                        if (!parent.visible.get()) {
+                            continue nextSprite;
+                        }
+
+                        // rotating vector
+                        double oldX = parent.x.get();
+                        double oldY = parent.y.get();
+                        double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
+                        double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
+
+                        px += rotX;
+                        py += rotY;
+                        pa += parent.a.get();
+
+                        parent = parent.parent.get();
                     }
 
                     // rotating vector
-                    double oldX = parent.x.get();
-                    double oldY = parent.y.get();
+                    double oldX = sprite.x.get();
+                    double oldY = sprite.y.get();
                     double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
                     double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
 
-                    px += rotX;
-                    py += rotY;
-                    pa += parent.a.get();
+                    double ix = size * (px + rotX + sprite.dx.get()) + 0.5d * width;
+                    double iy = size * (py + rotY + sprite.dy.get()) + 0.5d * height;
+                    double iw = size * sprite.w.get();
+                    double ih = size * sprite.h.get();
 
-                    parent = parent.parent.get();
-                }
-
-                // rotating vector
-                double oldX = sprite.x.get();
-                double oldY = sprite.y.get();
-                double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
-                double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
-
-                int ix = (int) Math.floor(size * (px + rotX + sprite.dx.get()) + 0.5d * width);
-                int iy = (int) Math.floor(size * (py + rotY + sprite.dy.get()) + 0.5d * height);
-                int iw = (int) Math.ceil(size * sprite.w.get());
-                int ih = (int) Math.ceil(size * sprite.h.get());
-
-                if (iw < 1 || ih < 1 ||
-                        ix + iw + ih < 0 || iy + iw + ih < 0 ||
-                        ix - iw - ih > width || iy - iw - ih > height) {
-                    continue;
-                }
-
-                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialiasing.get() ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
-                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, bilinearInterpolation.get() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, sprite.alpha.get().floatValue()));
-
-                if (sprite.fastScaling.get()) {
-                    AffineTransform trans = new AffineTransform();
-                    trans.translate(ix, iy);
-
-                    trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
-                    trans.rotate(pa + sprite.a.get());
-                    trans.scale(1d * iw / sprite.imgW, 1d * ih / sprite.imgH);
-                    trans.translate(sprite.dx.get() * size / (1d * iw / sprite.imgW), sprite.dy.get() * size / (1d * ih / sprite.imgH));
-
-                    trans.translate(sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
-                    trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
-                    trans.translate(-sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), -sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
-
-                    g.drawRenderedImage(sprite.getScaled(sprite.imgW, sprite.imgH), trans);
-
-                } else if (pa + sprite.a.get() != 0) {
-                    AffineTransform trans = new AffineTransform();
-                    trans.translate(ix, iy);
-
-                    trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
-                    trans.rotate(pa + sprite.a.get());
-                    trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
-
-                    trans.translate(sprite.w.get() / 2 * size, sprite.h.get() / 2 * size);
-                    trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
-                    trans.translate(-sprite.w.get() / 2 * size, -sprite.h.get() / 2 * size);
-
-                    g.drawRenderedImage(sprite.getScaled(iw, ih), trans);
-
-                } else {
-                    BufferedImage scaled = sprite.getScaled(iw, ih);
-                    int rx = ix;
-                    int ry = iy;
-                    int rw = scaled.getWidth();
-                    int rh = scaled.getHeight();
-                    if (sprite.flipX.get()) {
-                        rx += rw;
-                        rw *= -1;
+                    if (iw < 1 || ih < 1 ||
+                            ix + iw + ih < 0 || iy + iw + ih < 0 ||
+                            ix - iw - ih > width || iy - iw - ih > height) {
+                        continue;
                     }
-                    if (sprite.flipY.get()) {
-                        ry += rh;
-                        rh *= -1;
+
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialiasing.get() ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, bilinearInterpolation.get() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, sprite.alpha.get().floatValue()));
+
+                    if (optimizationLevel == O_FULL_TRANSFORM || sprite.fastScaling.get()) {
+                        AffineTransform trans = new AffineTransform();
+                        trans.translate(ix, iy);
+
+                        trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
+                        trans.rotate(pa + sprite.a.get());
+                        trans.scale(1d * iw / sprite.imgW, 1d * ih / sprite.imgH);
+                        trans.translate(sprite.dx.get() * size / (1d * iw / sprite.imgW), sprite.dy.get() * size / (1d * ih / sprite.imgH));
+
+                        trans.translate(sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
+                        trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
+                        trans.translate(-sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), -sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
+
+                        g.drawRenderedImage(sprite.getScaled(sprite.frmW, sprite.frmH), trans);
+
+                    } else if (optimizationLevel == O_SCALING_CACHE || pa + sprite.a.get() != 0) {
+                        AffineTransform trans = new AffineTransform();
+                        trans.translate(ix, iy);
+
+                        trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
+                        trans.rotate(pa + sprite.a.get());
+                        trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
+
+                        trans.translate(sprite.w.get() / 2 * size, sprite.h.get() / 2 * size);
+                        trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
+                        trans.translate(-sprite.w.get() / 2 * size, -sprite.h.get() / 2 * size);
+
+                        g.drawRenderedImage(sprite.getScaled((int) Math.ceil(iw), (int) Math.ceil(ih)), trans);
+
+                    } else {
+                        BufferedImage scaled = sprite.getScaled((int) Math.ceil(iw), (int) Math.ceil(ih));
+                        int rx = (int) Math.floor(ix);
+                        int ry = (int) Math.floor(iy);
+                        int rw = scaled.getWidth();
+                        int rh = scaled.getHeight();
+                        if (sprite.flipX.get()) {
+                            rx += rw;
+                            rw *= -1;
+                        }
+                        if (sprite.flipY.get()) {
+                            ry += rh;
+                            rh *= -1;
+                        }
+                        g.drawImage(scaled, rx, ry, rw, rh, null);
                     }
-                    g.drawImage(scaled, rx, ry, rw, rh, null);
                 }
             }
-        }
 
-        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1));
-        g.setColor(Color.BLACK);
-        g.setBackground(Color.BLACK);
-        double brdx = 0.5d * width - 0.5d * vpWidth * size;
-        double brdy = 0.5d * height - 0.5d * vpHeight * size;
-        g.fillRect(0, 0, (int) brdx, height);
-        g.fillRect((int) (width - brdx), 0, width, height);
-        g.fillRect(0, 0, width, (int) (brdy));
-        g.fillRect(0, (int) (height - brdy), width, height);
-
-        if (debug.get()) {
-            g.setColor(Color.WHITE);
-            g.drawString("FPS: " + fps, 0, 20);
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1));
             g.setColor(Color.BLACK);
-            g.drawString("FPS: " + fps, 1, 21);
-            g.setColor(Color.WHITE);
-            g.drawString("RPS: " + rps, 0, 40);
-            g.setColor(Color.BLACK);
-            g.drawString("RPS: " + rps, 1, 41);
-        }
+            g.setBackground(Color.BLACK);
+            double brdx = 0.5d * width - 0.5d * vpWidth * size;
+            double brdy = 0.5d * height - 0.5d * vpHeight * size;
+            g.fillRect(0, 0, (int) brdx, height);
+            g.fillRect((int) (width - brdx), 0, width, height);
+            g.fillRect(0, 0, width, (int) (brdy));
+            g.fillRect(0, (int) (height - brdy), width, height);
 
-        renderLock.unlock();
+            if (debug.get()) {
+                g.setColor(Color.WHITE);
+                g.drawString("FPS: " + fps, 0, 20);
+                g.setColor(Color.BLACK);
+                g.drawString("FPS: " + fps, 1, 21);
+                g.setColor(Color.WHITE);
+                g.drawString("RPS: " + rps, 0, 40);
+                g.setColor(Color.BLACK);
+                g.drawString("RPS: " + rps, 1, 41);
+            }
+        }
     }
 
     BufferedImage getScaledInstance(BufferedImage img,
@@ -1116,24 +1194,26 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         protected BufferedImage getScaled(int targetWidth, int targetHeight, int frameX, int frameY) {
-            BufferedImage scaledFrame = scaledImg[frameX][frameY];
-            if (!fastScaling.get()) {
-                if (disableCache.get() || scaledFrame == null || targetWidth != scaledFrame.getWidth() || targetHeight != scaledFrame.getHeight()) {
-                    scaledFrame = getScaledInstance(img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH),
-                            targetWidth, targetHeight);
-                    scaledImg[frameX][frameY] = scaledFrame;
-                }
-            } else {
-                if (disableCache.get() || scaledFrame == null) {
-                    if (imgW == frmW && imgH == frmH) {
-                        scaledFrame = img;
-                    } else {
-                        scaledFrame = img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH);
+            synchronized (scaledImg) {
+                BufferedImage scaledFrame = scaledImg[frameX][frameY];
+                if (!fastScaling.get()) {
+                    if (disableCache.get() || scaledFrame == null || targetWidth != scaledFrame.getWidth() || targetHeight != scaledFrame.getHeight()) {
+                        scaledFrame = getScaledInstance(img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH),
+                                targetWidth, targetHeight);
+                        scaledImg[frameX][frameY] = scaledFrame;
                     }
-                    scaledImg[frameX][frameY] = scaledFrame;
+                } else {
+                    if (disableCache.get() || scaledFrame == null) {
+                        if (imgW == frmW && imgH == frmH) {
+                            scaledFrame = img;
+                        } else {
+                            scaledFrame = img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH);
+                        }
+                        scaledImg[frameX][frameY] = scaledFrame;
+                    }
                 }
+                return scaledFrame;
             }
-            return scaledFrame;
         }
 
         /**
@@ -1235,12 +1315,14 @@ public class Spriter extends JFrame implements Runnable {
          * Notify sprite about image changes. Cached frames will be renewed.
          */
         public Sprite renewImage() {
-            for (int x = 0; x < scaledImg.length; x++) {
-                for (int y = 0; y < scaledImg[x].length; y++) {
-                    scaledImg[x][y] = null;
+            synchronized (scaledImg) {
+                for (int x = 0; x < scaledImg.length; x++) {
+                    for (int y = 0; y < scaledImg[x].length; y++) {
+                        scaledImg[x][y] = null;
+                    }
                 }
+                return this;
             }
-            return this;
         }
 
         public void setAlpha(double alpha) {

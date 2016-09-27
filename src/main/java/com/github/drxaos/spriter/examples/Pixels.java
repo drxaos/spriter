@@ -28,8 +28,8 @@ public class Pixels {
     public static void main(String[] args) throws IOException, InterruptedException {
 
         Spriter spriter = new Spriter("Pixels");
-        spriter.setAntialiasing(false);
-        spriter.setBilinearInterpolation(false);
+        spriter.getRenderer().setAntialiasing(false);
+        spriter.getRenderer().setBilinearInterpolation(false);
 
         spriter.setSmoothScaling(false);
         spriter.setBackgroundColor(Color.decode("#D0F4F7"));

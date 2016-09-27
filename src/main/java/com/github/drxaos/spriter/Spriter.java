@@ -6,6 +6,7 @@ import java.awt.event.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.awt.image.VolatileImage;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,25 +20,24 @@ public class Spriter extends JFrame implements Runnable {
     private Thread thread;
     private Canvas canvas;
     private BufferStrategy strategy;
-    private BufferedImage background;
+    private VolatileImage background;
     private Graphics2D backgroundGraphics;
     private Graphics2D graphics;
     private boolean smoothScaling = true;
 
-    private AtomicBoolean debug = new AtomicBoolean(false);
     private int fps, rps;
     private long fpsCounterStart = 0;
     private AtomicInteger fpsCounter = new AtomicInteger(0);
     private AtomicInteger rpsCounter = new AtomicInteger(0);
 
     private PainterChain painterChain;
+    private Renderer renderer;
 
     GraphicsConfiguration config;
 
     Control control;
 
     ArrayList<Sprite> sprites = new ArrayList<>();
-    Map<Integer, AtomicBoolean> ignoredLayers = new HashMap<>();
 
     AtomicBoolean resized = new AtomicBoolean(false);
 
@@ -45,16 +45,6 @@ public class Spriter extends JFrame implements Runnable {
     final ReentrantLock renderLock = new ReentrantLock();
     AtomicBoolean renderDone = new AtomicBoolean(false);
     AtomicBoolean pause = new AtomicBoolean(false);
-
-    AtomicBoolean bilinearInterpolation = new AtomicBoolean(true);
-    AtomicBoolean antialiasing = new AtomicBoolean(true);
-
-    AtomicReference<Double>
-            viewportWidth = new AtomicReference<>(2d),
-            viewportHeight = new AtomicReference<>(2d),
-            viewportShiftX = new AtomicReference<>(0d),
-            viewportShiftY = new AtomicReference<>(0d),
-            viewportShiftA = new AtomicReference<>(0d);
 
     AtomicReference<Color> bg = new AtomicReference<>(Color.WHITE);
 
@@ -69,8 +59,16 @@ public class Spriter extends JFrame implements Runnable {
         return control;
     }
 
-    final BufferedImage create(final int width, final int height, final boolean alpha) {
-        return config.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
+    public BufferedImage makeCompatibleImage(final int width, final int height, final boolean alpha) {
+        BufferedImage compatibleImage = config.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
+        compatibleImage.setAccelerationPriority(1);
+        return compatibleImage;
+    }
+
+    public VolatileImage makeVolatileImage(final int width, final int height, final boolean alpha) {
+        VolatileImage compatibleImage = config.createCompatibleVolatileImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
+        compatibleImage.setAccelerationPriority(1);
+        return compatibleImage;
     }
 
     Cursor defaultCursor, blankCursor;
@@ -88,25 +86,7 @@ public class Spriter extends JFrame implements Runnable {
      * Show debug info
      */
     public void setDebug(boolean debug) {
-        this.debug.set(debug);
-    }
-
-    /**
-     * Images antialiasing.
-     * <br/>
-     * Default is true
-     */
-    public void setAntialiasing(boolean antialiasing) {
-        this.antialiasing.set(antialiasing);
-    }
-
-    /**
-     * Images interpolation.
-     * <br/>
-     * Default is true
-     */
-    public void setBilinearInterpolation(boolean bilinearInterpolation) {
-        this.bilinearInterpolation.set(bilinearInterpolation);
+        renderer.setDebug(debug);
     }
 
     /**
@@ -123,7 +103,7 @@ public class Spriter extends JFrame implements Runnable {
         setLayout(new BorderLayout());
         setIgnoreRepaint(true);
 
-        painterChain = new Renderer();
+        painterChain = renderer = new Renderer();
 
         config = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 
@@ -220,7 +200,7 @@ public class Spriter extends JFrame implements Runnable {
         setVisible(true);
 
         // Background & Buffer
-        background = create(canvas.getWidth(), canvas.getHeight(), true);
+        background = makeVolatileImage(canvas.getWidth(), canvas.getHeight(), true);
         canvas.createBufferStrategy(2);
         do {
             strategy = canvas.getBufferStrategy();
@@ -262,32 +242,6 @@ public class Spriter extends JFrame implements Runnable {
 
         } catch (IllegalStateException e) {
             return true;
-        }
-    }
-
-    /**
-     * Reenable disabled layer.
-     */
-    public void enableLayer(int layer) {
-        AtomicBoolean b = ignoredLayers.get(layer);
-        if (b == null) {
-            b = new AtomicBoolean(false);
-            ignoredLayers.put(layer, b);
-        } else {
-            b.set(false);
-        }
-    }
-
-    /**
-     * Disable layer. Sprites contained by this layer won't be rendered.
-     */
-    public void disableLayer(int layer) {
-        AtomicBoolean b = ignoredLayers.get(layer);
-        if (b == null) {
-            b = new AtomicBoolean(true);
-            ignoredLayers.put(layer, b);
-        } else {
-            b.set(true);
         }
     }
 
@@ -344,8 +298,22 @@ public class Spriter extends JFrame implements Runnable {
         return painterChain;
     }
 
+    /**
+     * Get default renderer
+     */
+    public Renderer getRenderer() {
+        return renderer;
+    }
+
+    /**
+     * Get new renderer
+     */
+    public Renderer createRenderer() {
+        return new Renderer(getRenderer());
+    }
+
     public void run() {
-        backgroundGraphics = background.createGraphics();
+        backgroundGraphics = (Graphics2D) background.getGraphics();
         long fpsWait = (long) (1.0 / 60 * 1000);
         main:
         while (true) {
@@ -361,8 +329,8 @@ public class Spriter extends JFrame implements Runnable {
                         renderDone.set(false);
 
                         if (resized.getAndSet(false)) {
-                            background = create(canvas.getWidth(), canvas.getHeight(), true);
-                            backgroundGraphics = background.createGraphics();
+                            background = makeVolatileImage(canvas.getWidth(), canvas.getHeight(), true);
+                            backgroundGraphics = (Graphics2D) background.getGraphics();
                         }
 
                         // Update Graphics
@@ -416,40 +384,11 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     Point screenToWorld(int screenX, int screenY) {
-        double width = canvas.getWidth();
-        double height = canvas.getHeight();
-        double vpWidth = viewportWidth.get();
-        double vpHeight = viewportHeight.get();
-
-        double ws = width / vpWidth;
-        double hs = height / vpHeight;
-        double size = ws > hs ? hs : ws;
-
-        double worldX = (screenX - width / 2) / size;
-        double worldY = (screenY - height / 2) / size;
-
-        worldX = worldX > vpWidth / 2 ? vpWidth / 2 : worldX;
-        worldY = worldY > vpHeight / 2 ? vpHeight / 2 : worldY;
-        worldX = worldX < -vpWidth / 2 ? -vpWidth / 2 : worldX;
-        worldY = worldY < -vpHeight / 2 ? -vpHeight / 2 : worldY;
-
-        return new Point(worldX, worldY);
+        return renderer.screenToWorld(screenX, screenY);
     }
 
     Point worldToScreen(int worldX, int worldY) {
-        double width = canvas.getWidth();
-        double height = canvas.getHeight();
-        double vpWidth = viewportWidth.get();
-        double vpHeight = viewportHeight.get();
-
-        double ws = width / vpWidth;
-        double hs = height / vpHeight;
-        double size = ws > hs ? hs : ws;
-
-        double screenX = (width / 2) + worldX * size;
-        double screenY = (height / 2) + worldY * size;
-
-        return new Point(screenX, screenY);
+        return renderer.worldToScreen(worldX, worldY);
     }
 
     public void setBackgroundColor(Color color) {
@@ -476,20 +415,20 @@ public class Spriter extends JFrame implements Runnable {
             this.next = next;
         }
 
-        public BufferedImage chain(BufferedImage img, Graphics2D g, int width, int height) {
-            BufferedImage render = render(img, g, width, height);
+        public Image chain(Image img, Graphics2D g, int width, int height) {
+            Image render = render(img, g, width, height);
             if (next == null) {
                 return render;
             }
             if (render != img) {
-                g = render.createGraphics();
-                width = render.getWidth();
-                height = render.getHeight();
+                g = (Graphics2D) render.getGraphics();
+                width = render.getWidth(null);
+                height = render.getHeight(null);
             }
             return next.chain(render, g, width, height);
         }
 
-        public BufferedImage render(BufferedImage img, Graphics2D g, int width, int height) {
+        public Image render(Image img, Graphics2D g, int width, int height) {
             render(g, width, height);
             return img;
         }
@@ -499,14 +438,187 @@ public class Spriter extends JFrame implements Runnable {
 
     public class Renderer extends PainterChain {
 
+        public Renderer() {
+        }
+
+        public Renderer(Renderer proto) {
+            this.optimizationLevel = proto.optimizationLevel;
+            this.bilinearInterpolation = new AtomicBoolean(proto.bilinearInterpolation.get());
+            this.antialiasing = new AtomicBoolean(proto.antialiasing.get());
+            this.debug = new AtomicBoolean(proto.debug.get());
+            this.viewportWidth = new AtomicReference<>(proto.viewportWidth.get());
+            this.viewportHeight = new AtomicReference<>(proto.viewportHeight.get());
+            this.viewportShiftX = new AtomicReference<>(proto.viewportShiftX.get());
+            this.viewportShiftY = new AtomicReference<>(proto.viewportShiftY.get());
+            this.viewportShiftA = new AtomicReference<>(proto.viewportShiftA.get());
+            this.ignoredLayers = new HashMap<>(proto.ignoredLayers);
+        }
+
         public static final int O_FULL_TRANSFORM = 0;
         public static final int O_SCALING_CACHE = 1;
         public static final int O_SCALING_CACHE_AND_ANGLE_0 = 2;
 
-        int optimizationLevel = O_SCALING_CACHE_AND_ANGLE_0;
+        int optimizationLevel = O_FULL_TRANSFORM;
 
         public void setOptimizationLevel(int optimizationLevel) {
             this.optimizationLevel = optimizationLevel;
+        }
+
+        AtomicReference<Double>
+                viewportWidth = new AtomicReference<>(2d),
+                viewportHeight = new AtomicReference<>(2d),
+                viewportShiftX = new AtomicReference<>(0d),
+                viewportShiftY = new AtomicReference<>(0d),
+                viewportShiftA = new AtomicReference<>(0d);
+
+        /**
+         * Set new viewport width.
+         * <br/>
+         * Default is 2.0
+         */
+        public void setViewportWidth(double viewportWidth) {
+            this.viewportWidth.set(viewportWidth);
+        }
+
+        /**
+         * Set new viewport height.
+         * <br/>
+         * Default is 2.0
+         */
+        public void setViewportHeight(double viewportHeight) {
+            this.viewportHeight.set(viewportHeight);
+        }
+
+        /**
+         * Shift viewport along X axis.
+         * <br/>
+         * Default is 0.0
+         */
+        public void setViewportShiftX(double shiftX) {
+            this.viewportShiftX.set(shiftX);
+        }
+
+        /**
+         * Shift viewport along Y axis.
+         * <br/>
+         * Default is 0.0
+         */
+        public void setViewportShiftY(double shiftY) {
+            this.viewportShiftY.set(shiftY);
+        }
+
+        /**
+         * Shift viewport.
+         * <br/>
+         * Default is 0.0, 0.0
+         */
+        public void setViewportShift(double shiftX, double shiftY) {
+            setViewportShiftX(shiftX);
+            setViewportShiftY(shiftY);
+        }
+
+        /**
+         * Rotate viewport.
+         * <br/>
+         * Default is 0.0
+         */
+        public void setViewportAngle(double angle) {
+            this.viewportShiftA.set(angle);
+        }
+
+        Point screenToWorld(int screenX, int screenY) {
+            double width = canvas.getWidth();
+            double height = canvas.getHeight();
+            double vpWidth = viewportWidth.get();
+            double vpHeight = viewportHeight.get();
+
+            double ws = width / vpWidth;
+            double hs = height / vpHeight;
+            double size = ws > hs ? hs : ws;
+
+            double worldX = (screenX - width / 2) / size;
+            double worldY = (screenY - height / 2) / size;
+
+            worldX = worldX > vpWidth / 2 ? vpWidth / 2 : worldX;
+            worldY = worldY > vpHeight / 2 ? vpHeight / 2 : worldY;
+            worldX = worldX < -vpWidth / 2 ? -vpWidth / 2 : worldX;
+            worldY = worldY < -vpHeight / 2 ? -vpHeight / 2 : worldY;
+
+            return new Point(worldX, worldY);
+        }
+
+        Point worldToScreen(int worldX, int worldY) {
+            double width = canvas.getWidth();
+            double height = canvas.getHeight();
+            double vpWidth = viewportWidth.get();
+            double vpHeight = viewportHeight.get();
+
+            double ws = width / vpWidth;
+            double hs = height / vpHeight;
+            double size = ws > hs ? hs : ws;
+
+            double screenX = (width / 2) + worldX * size;
+            double screenY = (height / 2) + worldY * size;
+
+            return new Point(screenX, screenY);
+        }
+
+        Map<Integer, AtomicBoolean> ignoredLayers = new HashMap<>();
+
+        /**
+         * Reenable disabled layer.
+         */
+        public void enableLayer(int layer) {
+            AtomicBoolean b = ignoredLayers.get(layer);
+            if (b == null) {
+                b = new AtomicBoolean(false);
+                ignoredLayers.put(layer, b);
+            } else {
+                b.set(false);
+            }
+        }
+
+        /**
+         * Disable layer. Sprites contained by this layer won't be rendered.
+         */
+        public void disableLayer(int layer) {
+            AtomicBoolean b = ignoredLayers.get(layer);
+            if (b == null) {
+                b = new AtomicBoolean(true);
+                ignoredLayers.put(layer, b);
+            } else {
+                b.set(true);
+            }
+        }
+
+        AtomicBoolean bilinearInterpolation = new AtomicBoolean(true);
+        AtomicBoolean antialiasing = new AtomicBoolean(true);
+
+        /**
+         * Images antialiasing.
+         * <br/>
+         * Default is true
+         */
+        public void setAntialiasing(boolean antialiasing) {
+            this.antialiasing.set(antialiasing);
+        }
+
+        /**
+         * Images interpolation.
+         * <br/>
+         * Default is true
+         */
+        public void setBilinearInterpolation(boolean bilinearInterpolation) {
+            this.bilinearInterpolation.set(bilinearInterpolation);
+        }
+
+        private AtomicBoolean debug = new AtomicBoolean(false);
+
+        /**
+         * Show debug info
+         */
+        public void setDebug(boolean debug) {
+            this.debug.set(debug);
         }
 
         private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
@@ -552,6 +664,8 @@ public class Spriter extends JFrame implements Runnable {
             double ws = width / vpWidth;
             double hs = height / vpHeight;
             double size = ws > hs ? hs : ws;
+
+            int drawCounter = 0;
 
             for (Integer l : layers.keySet()) {
                 ArrayList<Sprite> list = layers.get(l);
@@ -606,6 +720,8 @@ public class Spriter extends JFrame implements Runnable {
                         continue;
                     }
 
+                    drawCounter++;
+
                     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialiasing.get() ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
                     g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, bilinearInterpolation.get() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, sprite.alpha.get().floatValue()));
@@ -623,7 +739,7 @@ public class Spriter extends JFrame implements Runnable {
                         trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
                         trans.translate(-sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), -sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
 
-                        g.drawRenderedImage(sprite.getScaled(sprite.frmW, sprite.frmH), trans);
+                        g.drawRenderedImage(sprite.getScaled(sprite.imgW, sprite.imgH), trans);
 
                     } else if (optimizationLevel == O_SCALING_CACHE || pa + sprite.a.get() != 0) {
                         AffineTransform trans = new AffineTransform();
@@ -677,6 +793,10 @@ public class Spriter extends JFrame implements Runnable {
                 g.drawString("RPS: " + rps, 0, 40);
                 g.setColor(Color.BLACK);
                 g.drawString("RPS: " + rps, 1, 41);
+                g.setColor(Color.WHITE);
+                g.drawString("OBJ: " + drawCounter, 0, 60);
+                g.setColor(Color.BLACK);
+                g.drawString("OBJ: " + drawCounter, 1, 61);
             }
         }
     }
@@ -744,7 +864,7 @@ public class Spriter extends JFrame implements Runnable {
      * Default is 2.0
      */
     public void setViewportWidth(double viewportWidth) {
-        this.viewportWidth.set(viewportWidth);
+        renderer.setViewportWidth(viewportWidth);
     }
 
     /**
@@ -753,7 +873,7 @@ public class Spriter extends JFrame implements Runnable {
      * Default is 2.0
      */
     public void setViewportHeight(double viewportHeight) {
-        this.viewportHeight.set(viewportHeight);
+        renderer.setViewportHeight(viewportHeight);
     }
 
     /**
@@ -772,7 +892,7 @@ public class Spriter extends JFrame implements Runnable {
      * Default is 0.0
      */
     public void setViewportShiftX(double shiftX) {
-        this.viewportShiftX.set(shiftX);
+        renderer.setViewportShiftX(shiftX);
     }
 
     /**
@@ -781,7 +901,7 @@ public class Spriter extends JFrame implements Runnable {
      * Default is 0.0
      */
     public void setViewportShiftY(double shiftY) {
-        this.viewportShiftY.set(shiftY);
+        renderer.setViewportShiftY(shiftY);
     }
 
     /**
@@ -790,7 +910,7 @@ public class Spriter extends JFrame implements Runnable {
      * Default is 0.0
      */
     public void setViewportAngle(double angle) {
-        this.viewportShiftA.set(angle);
+        renderer.setViewportAngle(angle);
     }
 
     /**

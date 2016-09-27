@@ -6,13 +6,19 @@ import com.github.drxaos.spriter.SpriterUtils;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.util.concurrent.TimeUnit;
+import java.awt.image.VolatileImage;
+import java.util.concurrent.*;
 
 
 /**
  * Based on https://github.com/drxaos-edu/spacerace
  */
 public class Multiplayer {
+
+    static {
+        System.setProperty("sun.java2d.opengl", "True");
+        System.setProperty("sun.java2d.accthreshold", "0");
+    }
 
     final static int
             LAYER_BG = 0,
@@ -45,40 +51,71 @@ public class Multiplayer {
 
     static Spriter.Sprite[] ufo = new Spriter.Sprite[10000];
 
+    static double[]
+            star_sc = new double[10000],
+            star_d = new double[10000],
+            star_v = new double[10000];
+    static Spriter.Sprite[] star = new Spriter.Sprite[10000];
+
     static class TwinView extends Spriter.PainterChain {
 
         Spriter spriter;
-        Spriter.PainterChain renderer;
-        BufferedImage left, right;
-        Graphics2D lg, rg;
+        Spriter.Renderer rendererLeft, rendererRight;
+        VolatileImage left, right;
+        Graphics2D graphicsLeft, graphicsRight;
+        ExecutorService executor = Executors.newFixedThreadPool(1);
 
-        public TwinView(Spriter spriter, Spriter.PainterChain renderer) {
+        public TwinView(Spriter spriter) {
             this.spriter = spriter;
-            this.renderer = renderer;
+            this.rendererLeft = spriter.createRenderer();
+            this.rendererRight = spriter.createRenderer();
         }
 
         @Override
-        public BufferedImage render(BufferedImage img, Graphics2D g, int width, int height) {
+        public Image render(Image img, Graphics2D g, int width, int height) {
             int w = width / 2 - 10;
             int h = height - 10;
 
             if (left == null || left.getWidth() != w || left.getHeight() != h) {
-                left = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-                lg = left.createGraphics();
+                left = spriter.makeVolatileImage(w, h, true);
+                graphicsLeft = left.createGraphics();
             }
             if (right == null || right.getWidth() != w || right.getHeight() != h) {
-                right = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-                rg = right.createGraphics();
+                right = spriter.makeVolatileImage(w, h, true);
+                right.setAccelerationPriority(1);
+                graphicsRight = right.createGraphics();
             }
 
-            spriter.setViewportShift(player2_x, player2_y);
-            left = renderer.chain(left, lg, w, h);
+            Future<Image> leftFuture = executor.submit(() -> {
+                rendererLeft.setViewportShift(player2_x, player2_y);
+                return rendererLeft.chain(this.left, graphicsLeft, w, h);
+            });
 
-            spriter.setViewportShift(player1_x, player1_y);
-            right = renderer.chain(right, rg, w, h);
+            Future<Image> rightFuture = executor.submit(() -> {
+                rendererRight.setViewportShift(player1_x, player1_y);
+                return rendererRight.chain(this.right, graphicsRight, w, h);
+            });
 
-            g.drawImage(left, 5, 5, null);
-            g.drawImage(right, w + 15, 5, null);
+            g.setColor(Color.BLACK);
+            g.setBackground(Color.BLACK);
+            g.fillRect(0, 0, width, height);
+
+            try {
+                g.drawImage(leftFuture.get(), 5, 5, null);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                System.exit(0);
+            }
+
+            try {
+                g.drawImage(rightFuture.get(), w + 15, 5, null);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                System.exit(0);
+            }
+
             return img;
         }
 
@@ -133,6 +170,7 @@ public class Multiplayer {
 
         int wall_counter = 0;
         int ufo_counter = 0;
+        int star_counter = 0;
         for (int y = 0; y < 100; y++) {
             for (int x = 0; x < 100; x++) {
                 int[] pixel = new int[4];
@@ -140,13 +178,13 @@ public class Multiplayer {
                 int type = (pixel[0] & 1) + ((pixel[1] & 1) << 1) + ((pixel[2] & 1) << 2);
                 switch (type) {
                     case (0):
-                        wallPrototype.createGhost().setPos(x, y).setVisible(true);
+                        wallPrototype.createGhost().setPos(x, y).setAngle(Math.PI * 2 * Math.random()).setVisible(true);
                         wall_x[wall_counter] = x;
                         wall_y[wall_counter] = y;
                         wall_counter++;
                         break;
                     case (1):
-                        player_red.setPos(x, y);
+                        player_red.setPos(x, y).setAngle(-Math.PI / 2);
                         player2_a = -Math.PI / 2;
                         player2_x = x;
                         player2_y = y;
@@ -162,10 +200,16 @@ public class Multiplayer {
                         player1_vy = 0;
                         break;
                     case (3):
-                        starPrototype.clone().setPos(x, y).setWidthProportional(Math.random() * 0.4 + 0.4).setVisible(true);
+                        star_sc[star_counter] = Math.random() * 0.2 + 0.4;
+                        star_d[star_counter] = Math.random() * 10;
+                        star_v[star_counter] = Math.random() * 0.1;
+                        star[star_counter] = starPrototype.clone().setPos(x, y)
+                                .setWidthProportional(star_sc[star_counter] + 0.2 * Math.sin(star_d[star_counter]))
+                                .setAngle(Math.PI * 2 * Math.random()).setVisible(true);
+                        star_counter++;
                         break;
                     case (4):
-                        ufo[ufo_counter] = ufoPrototype.createGhost().setPos(x, y).setVisible(true);
+                        ufo[ufo_counter] = ufoPrototype.createGhost().setPos(x, y).setAngle(Math.PI * 2 * Math.random()).setVisible(true);
                         ufo_x[ufo_counter] = x;
                         ufo_y[ufo_counter] = y;
                         ufo_vx[ufo_counter] = 0;
@@ -182,10 +226,8 @@ public class Multiplayer {
             }
         }
 
-        TwinView twinView = new TwinView(spriter, spriter.getPainterChainHead());
-        spriter.setPainterChainHead(twinView);
-
         spriter.setDebug(true);
+        spriter.setPainterChainHead(new TwinView(spriter));
 
         Spriter.Control control = spriter.getControl();
 
@@ -345,9 +387,14 @@ public class Multiplayer {
                 ufo[i].setPos(ufo_x[i], ufo_y[i]);
             }
 
+            for (int i = 0; i < star_counter; i++) {
+                star_d[i] += star_v[i];
+                star[i].setWidthProportional(star_sc[i] + 0.2 * Math.sin(star_d[i]));
+            }
+
             spriter.endFrame();
 
-            TimeUnit.MILLISECONDS.sleep(25);
+            Thread.sleep(25);
         }
     }
 }

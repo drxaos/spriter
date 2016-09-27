@@ -12,7 +12,19 @@ public class SpriterUtils {
      * "/img.png" -> "resources/img.png"
      */
     public static BufferedImage loadImageFromResource(String name) throws IOException {
-        return ImageIO.read(SpriterUtils.class.getResource(name));
+        BufferedImage image = ImageIO.read(SpriterUtils.class.getResource(name));
+        BufferedImage convertedImage;
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        GraphicsDevice gd = ge.getDefaultScreenDevice();
+        GraphicsConfiguration gc = gd.getDefaultConfiguration();
+        convertedImage = gc.createCompatibleImage(image.getWidth(),
+                image.getHeight(),
+                image.getTransparency());
+        convertedImage.setAccelerationPriority(1f);
+        Graphics2D g2d = convertedImage.createGraphics();
+        g2d.drawImage(image, 0, 0, image.getWidth(), image.getHeight(), null);
+        g2d.dispose();
+        return convertedImage;
     }
 
     /**

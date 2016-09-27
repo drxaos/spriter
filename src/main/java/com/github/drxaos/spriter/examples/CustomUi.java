@@ -12,6 +12,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class CustomUi {
+    static {
+        System.setProperty("sun.java2d.opengl", "True");
+        System.setProperty("sun.java2d.accthreshold", "0");
+    }
+
     public static final int L_POINT = 10;
     public static final int L_FLY = 100;
     public static final int L_HUD_CURSOR = 1999;
@@ -101,12 +106,14 @@ public class CustomUi {
 
         Spriter spriter = new Spriter("Custom UI");
         spriter.setMinimumSize(new Dimension(400, 400));
+        spriter.setDebug(true);
 
         StatusBar statusBar = new StatusBar();
         spriter.getContentPane().add(statusBar, BorderLayout.SOUTH);
 
         AtomicBoolean add = new AtomicBoolean(false);
         AtomicBoolean add10 = new AtomicBoolean(false);
+        AtomicBoolean add100 = new AtomicBoolean(false);
         AtomicBoolean remove = new AtomicBoolean(false);
         AtomicBoolean clear = new AtomicBoolean(false);
         AtomicBoolean pause = new AtomicBoolean(false);
@@ -114,6 +121,7 @@ public class CustomUi {
         {
             JButton jb1 = new JButton("Add fly");
             JButton jb3 = new JButton("Add 10 flies");
+            JButton jb8 = new JButton("Add 100 flies");
             JButton jb2 = new JButton("Remove fly");
             JButton jb4 = new JButton("Clear all");
             JButton jb7 = new JButton("Pause");
@@ -124,6 +132,7 @@ public class CustomUi {
             jb1.addActionListener(e -> add.set(true));
             jb2.addActionListener(e -> remove.set(true));
             jb3.addActionListener(e -> add10.set(true));
+            jb8.addActionListener(e -> add100.set(true));
             jb4.addActionListener(e -> clear.set(true));
             jb5.addActionListener(e -> {
                 boolean s = !smooth.get();
@@ -150,6 +159,7 @@ public class CustomUi {
             JPanel panel = new JPanel(new GridLayout(0, 1, 10, 10));
             panel.add(jb1);
             panel.add(jb3);
+            panel.add(jb8);
             panel.add(jb2);
             panel.add(jb4);
             panel.add(jb7);
@@ -195,6 +205,11 @@ public class CustomUi {
             }
             if (add10.getAndSet(false)) {
                 for (int i = 0; i < 10; i++) {
+                    flies.add(new Fly(m.getX(), m.getY()));
+                }
+            }
+            if (add100.getAndSet(false)) {
+                for (int i = 0; i < 100; i++) {
                     flies.add(new Fly(m.getX(), m.getY()));
                 }
             }

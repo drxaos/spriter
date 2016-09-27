@@ -1,6 +1,7 @@
 package com.github.drxaos.spriter.examples;
 
 import com.github.drxaos.spriter.Spriter;
+import com.github.drxaos.spriter.SpriterUtils;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -20,6 +21,11 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 public class Tiles {
+    static {
+        System.setProperty("sun.java2d.opengl", "True");
+        System.setProperty("sun.java2d.accthreshold", "0");
+    }
+
     public static final int L_DOOR = 100;
     public static final int L_SIGN = 100;
     public static final int L_COIN = 200;
@@ -31,10 +37,6 @@ public class Tiles {
 
     public static final int L_SHADOW = 2000;
     public static final int L_WIN = 2100;
-
-    public static BufferedImage loadImage(String name) throws IOException {
-        return ImageIO.read(Tiles.class.getResource(name));
-    }
 
     static Spriter.Sprite tileProto, playerProto, numbersProto, hudProto;
 
@@ -303,10 +305,10 @@ public class Tiles {
         spriter.setViewportShiftX(5 - 0.5);
         spriter.setViewportShiftY(5 - 0.5);
 
-        BufferedImage tilesSpriteSheet = loadImage("/tiles.png");
-        BufferedImage playerSpriteSheet = loadImage("/alien.png");
-        BufferedImage numbersSpriteSheet = loadImage("/numbers.png");
-        BufferedImage hudSpriteSheet = loadImage("/hud.png");
+        BufferedImage tilesSpriteSheet = SpriterUtils.loadImageFromResource("/tiles.png");
+        BufferedImage playerSpriteSheet = SpriterUtils.loadImageFromResource("/alien.png");
+        BufferedImage numbersSpriteSheet = SpriterUtils.loadImageFromResource("/numbers.png");
+        BufferedImage hudSpriteSheet = SpriterUtils.loadImageFromResource("/hud.png");
 
         tileProto = spriter.createSpriteProto(tilesSpriteSheet, 35, 35, 70, 70).setSquareSide(1).setLayer(L_TILE);
         playerProto = spriter.createSpriteProto(playerSpriteSheet, 72 / 2, 97, 72, 97).setWidthProportional(0.75).setLayer(L_PLAYER);
@@ -496,7 +498,11 @@ public class Tiles {
             spriter.beginFrame();
 
             op++;
-            player.sprite.setAlpha(Math.abs(Math.cos(0.1 * op)));
+            if (op < 100) {
+                player.sprite.setAlpha(Math.abs(Math.cos(0.1 * op)));
+            } else {
+                player.sprite.setAlpha(1);
+            }
 
             for (Water w : water.values()) {
                 w.animate();
@@ -597,6 +603,7 @@ public class Tiles {
 
                 if (player.y > ty + 5) {
                     player.reset();
+                    op = 0;
                 }
 
                 if (cul != null && cul.take() ||
@@ -638,10 +645,7 @@ public class Tiles {
         BufferedImage shadowImage = new BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR);
         shadowImage.setRGB(0, 0, 0);
         Spriter.Sprite shadow = spriter.createSprite(shadowImage, 0.5, 0.5, 10, 10).setLayer(L_SHADOW).setHud(true).setFastScaling(true).setDisableCache(true);
-        Spriter.Sprite win = spriter.createSprite(loadImage("/win.png"), 314 / 2, 139 / 2, 4).setLayer(L_WIN).setHud(true).setFastScaling(true);
-
-        spriter.setAntialiasing(false);
-        spriter.setBilinearInterpolation(false);
+        Spriter.Sprite win = spriter.createSprite(SpriterUtils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2, 4).setLayer(L_WIN).setHud(true).setFastScaling(true);
 
         int f = 0;
         while (true) {

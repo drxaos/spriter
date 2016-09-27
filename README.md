@@ -1,6 +1,26 @@
 # Spriter
 A simple 2d sprites engine
 
+## Maven
+
+```xml
+    <repositories>
+        <repository>
+            <id>drxaos</id>
+            <name>mvn-repo</name>
+            <url>https://github.com/drxaos/mvn-repo/raw/master/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.drxaos</groupId>
+            <artifactId>spriter</artifactId>
+            <version>1.1</version>
+        </dependency>
+    </dependencies>
+```
+
 ## Example
 ```java
 public class Simple {

@@ -544,7 +544,7 @@ public class Spriter extends JFrame implements Runnable {
                     trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
                     trans.translate(-sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), -sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
 
-                    g.drawImage(sprite.getScaled(sprite.imgW, sprite.imgH), trans, null);
+                    g.drawRenderedImage(sprite.getScaled(sprite.imgW, sprite.imgH), trans);
 
                 } else if (pa + sprite.a.get() != 0) {
                     AffineTransform trans = new AffineTransform();
@@ -558,7 +558,7 @@ public class Spriter extends JFrame implements Runnable {
                     trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
                     trans.translate(-sprite.w.get() / 2 * size, -sprite.h.get() / 2 * size);
 
-                    g.drawImage(sprite.getScaled(iw, ih), trans, null);
+                    g.drawRenderedImage(sprite.getScaled(iw, ih), trans);
 
                 } else {
                     BufferedImage scaled = sprite.getScaled(iw, ih);

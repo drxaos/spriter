@@ -22,12 +22,12 @@ public class Fighter {
     public static void main(String[] args) throws IOException, InterruptedException {
 
         Spriter spriter = new Spriter("Fighter");
-        Spriter.Sprite cur1 = spriter.createSprite(loadImage("/cur1.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
-        Spriter.Sprite cur2 = spriter.createSprite(loadImage("/cur2.png"), 7, 7, 0.08).setLayer(LAYER_HUD);
-        Spriter.Sprite fighter = spriter.createSprite(loadImage("/fighter-01.png").getSubimage(3, 3, 713, 705), 354, 420, 0.25).setLayer(LAYER_AIR);
-        Spriter.Sprite target1 = spriter.createSprite(loadImage("/target.png"), 125, 125, 0.1).setLayer(LAYER_TOP);
-        Spriter.Sprite target2 = target1.createGhost();
-        Spriter.Sprite point = spriter.createSprite(loadImage("/point.png"), 256 / 2, 256 / 2, 1).setLayer(LAYER_GROUND);
+        Spriter.Sprite cur1 = spriter.createProto(loadImage("/cur1.png"), 7, 7).newInstance(0.08).setLayer(LAYER_HUD);
+        Spriter.Sprite cur2 = spriter.createProto(loadImage("/cur2.png"), 7, 7).newInstance(0.08).setLayer(LAYER_HUD);
+        Spriter.Sprite fighter = spriter.createProto(loadImage("/fighter-01.png").getSubimage(3, 3, 713, 705), 354, 420).newInstance(0.25).setLayer(LAYER_AIR);
+        Spriter.Sprite target1 = spriter.createProto(loadImage("/target.png"), 125, 125).newInstance(0.1).setLayer(LAYER_TOP);
+        Spriter.Sprite target2 = target1.newInstance();
+        Spriter.Sprite point = spriter.createProto(loadImage("/point.png"), 256 / 2, 256 / 2).newInstance(1).setLayer(LAYER_GROUND);
         Spriter.Control control = spriter.getControl();
 
         point.setVisible(false);
@@ -58,6 +58,7 @@ public class Fighter {
             target1.setX(x);
             target2.setY(y);
 
+            spriter.render();
             Thread.sleep(40);
         }
     }

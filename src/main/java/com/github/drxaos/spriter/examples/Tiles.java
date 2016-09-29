@@ -6,7 +6,6 @@ import javafx.embed.swing.JFXPanel;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 
-import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
@@ -142,8 +141,8 @@ public class Tiles {
 
         public Water(Spriter.Sprite sprite, double x, double y) {
             this.sprite1 = sprite;
-            this.sprite2 = sprite.clone().setX(x + 1);
-            this.sprite0 = sprite.clone().setX(x - 1);
+            this.sprite2 = sprite.newInstance().setX(x + 1);
+            this.sprite0 = sprite.newInstance().setX(x - 1);
             this.x = x;
             this.y = y;
         }
@@ -298,7 +297,6 @@ public class Tiles {
 
         Spriter spriter = new Spriter("Tiles");
         spriter.setBackgroundColor(Color.decode("#D0F4F7"));
-        spriter.pause();
 
         spriter.setViewportWidth(9.75);
         spriter.setViewportHeight(9.75);
@@ -310,19 +308,19 @@ public class Tiles {
         BufferedImage numbersSpriteSheet = SpriterUtils.loadImageFromResource("/numbers.png");
         BufferedImage hudSpriteSheet = SpriterUtils.loadImageFromResource("/hud.png");
 
-        tileProto = spriter.createSpriteProto(tilesSpriteSheet, 35, 35, 70, 70).setSquareSide(1).setLayer(L_TILE);
-        playerProto = spriter.createSpriteProto(playerSpriteSheet, 72 / 2, 97, 72, 97).setWidthProportional(0.75).setLayer(L_PLAYER);
-        numbersProto = spriter.createSpriteProto(numbersSpriteSheet, 15, 20, 30, 40).setWidthProportional(0.5).setLayer(L_HUD).setHud(true);
-        hudProto = spriter.createSpriteProto(hudSpriteSheet, 25, 25, 50, 50).setWidthProportional(0.7).setLayer(L_HUD).setHud(true);
+        tileProto = spriter.createProto(tilesSpriteSheet, 35, 35, 70, 70).newInstance(1, 1).setLayer(L_TILE);
+        playerProto = spriter.createProto(playerSpriteSheet, 72 / 2, 97, 72, 97).newInstance(0.75).setLayer(L_PLAYER);
+        numbersProto = spriter.createProto(numbersSpriteSheet, 15, 20, 30, 40).newInstance(0.5).setLayer(L_HUD).setHud(true).setVisible(false);
+        hudProto = spriter.createProto(hudSpriteSheet, 25, 25, 50, 50).newInstance(0.7).setLayer(L_HUD).setHud(true).setVisible(false);
 
-        hudProto.createGhost().setPos(-4.3, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
-        numbersProto.createGhost().setPos(-3.75, -4.3).setVisible(true).setFrame(10).setFrameRow(0);
-        Spriter.Sprite n1 = numbersProto.createGhost().setPos(-3.25, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
-        Spriter.Sprite n2 = numbersProto.createGhost().setPos(-2.7, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
-        hudProto.createGhost().setPos(4.3, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
-        hudProto.createGhost().setPos(4.0, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
-        hudProto.createGhost().setPos(3.7, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
-        Spriter.Sprite hudKey = hudProto.createGhost().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
+        hudProto.newInstance().setPos(-4.3, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        numbersProto.newInstance().setPos(-3.75, -4.3).setVisible(true).setFrame(10).setFrameRow(0);
+        Spriter.Sprite n1 = numbersProto.newInstance().setPos(-3.25, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        Spriter.Sprite n2 = numbersProto.newInstance().setPos(-2.7, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        hudProto.newInstance().setPos(4.3, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
+        hudProto.newInstance().setPos(4.0, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
+        hudProto.newInstance().setPos(3.7, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
+        Spriter.Sprite hudKey = hudProto.newInstance().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
 
         HashMap<Spriter.Point, Brick> bricks = new HashMap<>();
         HashMap<Spriter.Point, Coin> coins = new HashMap<>();
@@ -342,7 +340,7 @@ public class Tiles {
                 tx++;
 
                 if (c == '@') {
-                    Spriter.Sprite pl = playerProto.createGhost().setFrame(0).setFrameRow(0).setPos(tx, ty + 0.5).setVisible(true);
+                    Spriter.Sprite pl = playerProto.newInstance().setFrame(0).setFrameRow(0).setPos(tx, ty + 0.5).setVisible(true);
                     player = new Player(pl, tx, ty + 0.5);
                     continue;
                 }
@@ -410,7 +408,7 @@ public class Tiles {
                 }
                 if (fx >= 0 && fy >= 0) {
                     Spriter.Point p = new Spriter.Point(tx, ty);
-                    Spriter.Sprite tile = tileProto.createGhost().setFrame(fx).setFrameRow(fy).setPos(p).setVisible(true).setLayer(l);
+                    Spriter.Sprite tile = tileProto.newInstance().setFrame(fx).setFrameRow(fy).setPos(p).setVisible(true).setLayer(l);
                     if (c == '#') {
                         bricks.put(p, new Brick(tile, tx, ty, Brick.ROCK));
                     }
@@ -487,15 +485,12 @@ public class Tiles {
 
         int coinsCount = 0;
 
-        spriter.unpause();
-
         double vx, vy;
 
         spriter.setDebug(true);
 
         int op = 0;
         while (true) {
-            spriter.beginFrame();
 
             op++;
             if (op < 100) {
@@ -637,22 +632,21 @@ public class Tiles {
                 }
             }
 
-            spriter.endFrame();
+            spriter.render();
             Thread.sleep(30);
         }
-        spriter.endFrame();
+        spriter.render();
 
         BufferedImage shadowImage = new BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR);
         shadowImage.setRGB(0, 0, 0);
-        Spriter.Sprite shadow = spriter.createSprite(shadowImage, 0.5, 0.5, 10, 10).setLayer(L_SHADOW).setHud(true).setFastScaling(true).setDisableCache(true);
-        Spriter.Sprite win = spriter.createSprite(SpriterUtils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2, 4).setLayer(L_WIN).setHud(true).setFastScaling(true);
+        Spriter.Sprite shadow = spriter.createProto(shadowImage, 0.5, 0.5).newInstance(10, 10).setLayer(L_SHADOW).setHud(true);
+        Spriter.Sprite win = spriter.createProto(SpriterUtils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2).newInstance(4).setLayer(L_WIN).setHud(true);
 
         int f = 0;
         while (true) {
-            spriter.beginFrame();
             win.setWidthProportional(4 + Math.sin(0.2 * f++));
             shadowImage.setRGB(0, 0, Math.min(120, f) << 24);
-            spriter.endFrame();
+            spriter.render();
             Thread.sleep(30);
         }
     }

@@ -38,7 +38,7 @@ public class CustomUi {
         return ImageIO.read(Animation.class.getResource(name));
     }
 
-    static Spriter.Sprite flyProto;
+    static Spriter.Proto flyProto;
 
     static class Fly {
         Spriter.Sprite fSprite;
@@ -50,7 +50,7 @@ public class CustomUi {
         public Fly(double x, double y) {
             this.x = x;
             this.y = y;
-            fSprite = flyProto.clone().setWidthProportional(0.07).setVisible(true);
+            fSprite = flyProto.newInstance(0.07).setLayer(L_FLY);
             zf = Math.random() * 100;
             vf = Math.random() * 100;
             c = Math.random() > 0.5;
@@ -126,7 +126,6 @@ public class CustomUi {
             JButton jb4 = new JButton("Clear all");
             JButton jb7 = new JButton("Pause");
 
-            JButton jb5 = new JButton("Smooth is ON");
             JButton jb6 = new JButton("Exit");
 
             jb1.addActionListener(e -> add.set(true));
@@ -134,12 +133,6 @@ public class CustomUi {
             jb3.addActionListener(e -> add10.set(true));
             jb8.addActionListener(e -> add100.set(true));
             jb4.addActionListener(e -> clear.set(true));
-            jb5.addActionListener(e -> {
-                boolean s = !smooth.get();
-                smooth.set(s);
-                spriter.setSmoothScaling(s);
-                jb5.setText(s ? "Smooth is ON" : "Smooth is OFF");
-            });
             jb6.addActionListener(e -> System.exit(0));
             jb7.addActionListener(e -> {
                 boolean s = !pause.get();
@@ -166,15 +159,14 @@ public class CustomUi {
             outerPanel.add(panel, BorderLayout.NORTH);
 
             JPanel panel2 = new JPanel(new GridLayout(0, 1, 10, 10));
-            panel2.add(jb5);
             panel2.add(jb6);
             outerPanel.add(panel2, BorderLayout.SOUTH);
         }
 
-        flyProto = spriter.createSpriteProto(loadImage("/fly.png"), 17, 23, 40, 36).setLayer(L_FLY);
+        flyProto = spriter.createProto(loadImage("/fly.png"), 17, 23, 40, 36);
 
-        Spriter.Sprite cursor = spriter.createSprite(loadImage("/cur1.png"), 7, 7, 0.08).setLayer(L_HUD_CURSOR);
-        Spriter.Sprite point = spriter.createSprite(loadImage("/point.png"), 256 / 2, 256 / 2, 0.025).setLayer(L_POINT).setSquareSide(0).setVisible(true);
+        Spriter.Sprite cursor = spriter.createSprite(spriter.createProto(loadImage("/cur1.png"), 7, 7), 0.08).setLayer(L_HUD_CURSOR);
+        Spriter.Sprite point = spriter.createSprite(spriter.createProto(loadImage("/point.png"), 256 / 2, 256 / 2), 0.025).setLayer(L_POINT).setSquareSide(0).setVisible(true);
 
         Spriter.Control control = spriter.getControl();
 
@@ -230,6 +222,7 @@ public class CustomUi {
                 }
             }
 
+            spriter.render();
             Thread.sleep(20);
         }
     }

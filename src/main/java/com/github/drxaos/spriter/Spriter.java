@@ -11,11 +11,10 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Spriter extends JFrame implements Runnable {
 
-    boolean isRunning = true;
+    boolean shutdown = false;
 
     private Thread thread;
     private Canvas canvas;
@@ -23,12 +22,11 @@ public class Spriter extends JFrame implements Runnable {
     private VolatileImage background;
     private Graphics2D backgroundGraphics;
     private Graphics2D graphics;
-    private boolean smoothScaling = true;
+    private final Object renderWait = new Object();
 
-    private int fps, rps;
+    private int fps;
     private long fpsCounterStart = 0;
     private AtomicInteger fpsCounter = new AtomicInteger(0);
-    private AtomicInteger rpsCounter = new AtomicInteger(0);
 
     private PainterChain painterChain;
     private Renderer renderer;
@@ -41,12 +39,8 @@ public class Spriter extends JFrame implements Runnable {
 
     AtomicBoolean resized = new AtomicBoolean(false);
 
-    final Object runLock = new Object();
-    final ReentrantLock renderLock = new ReentrantLock();
-    AtomicBoolean renderDone = new AtomicBoolean(false);
-    AtomicBoolean pause = new AtomicBoolean(false);
-
-    AtomicReference<Color> bg = new AtomicReference<>(Color.WHITE);
+    AtomicReference<Color> bgColor = new AtomicReference<>(Color.WHITE);
+    Cursor defaultCursor, blankCursor;
 
     static {
         System.setProperty("sun.awt.noerasebackground", "true");
@@ -59,19 +53,12 @@ public class Spriter extends JFrame implements Runnable {
         return control;
     }
 
-    public BufferedImage makeCompatibleImage(final int width, final int height, final boolean alpha) {
-        BufferedImage compatibleImage = config.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
-        compatibleImage.setAccelerationPriority(1);
-        return compatibleImage;
-    }
-
     public VolatileImage makeVolatileImage(final int width, final int height, final boolean alpha) {
         VolatileImage compatibleImage = config.createCompatibleVolatileImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
         compatibleImage.setAccelerationPriority(1);
         return compatibleImage;
     }
 
-    Cursor defaultCursor, blankCursor;
 
     /**
      * Show default system cursor inside canvas.
@@ -214,7 +201,7 @@ public class Spriter extends JFrame implements Runnable {
     private class FrameClose extends WindowAdapter {
         @Override
         public void windowClosing(final WindowEvent e) {
-            isRunning = false;
+            shutdown = true;
         }
     }
 
@@ -246,45 +233,20 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     /**
-     * Pause rendering after this call.
+     * End modification of scene. Spriter will render frame after this call.
      */
-    public void pause() {
-        synchronized (runLock) {
-            pause.set(true);
-        }
-    }
-
-    /**
-     * Unpause rendering.
-     */
-    public void unpause() {
-        synchronized (runLock) {
-            pause.set(false);
-        }
-    }
-
-    /**
-     * Begin modification of sprites. Spriter will wait until endFrame.
-     */
-    public void beginFrame() {
-        synchronized (runLock) {
-            renderLock.lock();
-        }
-    }
-
-    /**
-     * End modification of sprites. Spriter will render frame after this call.
-     */
-    public void endFrame() {
+    public void render() {
         fpsCounter.incrementAndGet();
-        renderLock.unlock();
+        synchronized (renderWait) {
+            renderWait.notifyAll();
+        }
     }
 
     /**
      * Set new head of painters chain.
      * Default is instance of Renderer
      */
-    public void setPainterChainHead(PainterChain head) {
+    public void setPainterChain(PainterChain head) {
         if (head == null) {
             throw new IllegalArgumentException("head painter must not be null");
         }
@@ -292,16 +254,9 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     /**
-     * Returns the head of painters chain
-     */
-    public PainterChain getPainterChainHead() {
-        return painterChain;
-    }
-
-    /**
      * Get default renderer
      */
-    public Renderer getRenderer() {
+    public Renderer getDefaultRenderer() {
         return renderer;
     }
 
@@ -309,77 +264,46 @@ public class Spriter extends JFrame implements Runnable {
      * Get new renderer
      */
     public Renderer createRenderer() {
-        return new Renderer(getRenderer());
+        return new Renderer(getDefaultRenderer());
     }
 
     public void run() {
         backgroundGraphics = (Graphics2D) background.getGraphics();
-        long fpsWait = (long) (1.0 / 60 * 1000);
-        main:
         while (true) {
-            if (isRunning) {
-                long renderStart = System.nanoTime();
-                synchronized (runLock) {
-                    if (System.currentTimeMillis() - fpsCounterStart > 1000) {
-                        fps = fpsCounter.getAndSet(0);
-                        rps = rpsCounter.getAndSet(0);
-                        fpsCounterStart = System.currentTimeMillis();
-                    }
-                    if (!pause.get()) {
-                        renderDone.set(false);
+            if (shutdown) {
+                break;
+            }
 
-                        if (resized.getAndSet(false)) {
-                            background = makeVolatileImage(canvas.getWidth(), canvas.getHeight(), true);
-                            backgroundGraphics = (Graphics2D) background.getGraphics();
-                        }
+            if (System.currentTimeMillis() - fpsCounterStart > 1000) {
+                fps = fpsCounter.getAndSet(0);
+                fpsCounterStart = System.currentTimeMillis();
+            }
 
-                        // Update Graphics
-                        do {
-                            Graphics2D bg = getBuffer();
-                            if (bg == null) {
-                                continue;
-                            }
-                            if (!isRunning) {
-                                break main;
-                            }
+            if (resized.getAndSet(false)) {
+                background = makeVolatileImage(canvas.getWidth(), canvas.getHeight(), true);
+                backgroundGraphics = (Graphics2D) background.getGraphics();
+            }
 
-                            renderLock.lock();
-                            rpsCounter.incrementAndGet();
-                            painterChain.chain(background, backgroundGraphics, background.getWidth(), background.getHeight());
-                            renderLock.unlock();
-
-                            // thingy
-                            bg.drawImage(background, 0, 0, null);
-                            bg.dispose();
-                        } while (!updateScreen());
-
-                        renderDone.set(true);
-                    }
+            do {
+                Graphics2D bg = getBuffer();
+                if (bg == null) {
+                    continue;
                 }
 
-                // Better do some FPS limiting here
-                long renderTime = (System.nanoTime() - renderStart) / 1000000;
+                painterChain.chain(background, backgroundGraphics, background.getWidth(), background.getHeight());
+
+                bg.drawImage(background, 0, 0, null);
+                bg.dispose();
+
                 try {
-                    Thread.sleep(Math.max(0, fpsWait - renderTime));
+                    synchronized (renderWait) {
+                        renderWait.wait();
+                    }
                 } catch (InterruptedException e) {
-                    Thread.interrupted();
-                    break;
+                    e.printStackTrace();
                 }
-            }
-        }
-    }
+            } while (!updateScreen());
 
-    /**
-     * Use bilinear interpolation.
-     * <br/>
-     * Default is true.
-     */
-    public void setSmoothScaling(boolean smoothScaling) {
-        this.smoothScaling = smoothScaling;
-        synchronized (sprites) {
-            for (Sprite sprite : sprites) {
-                sprite.renewImage();
-            }
         }
     }
 
@@ -393,7 +317,7 @@ public class Spriter extends JFrame implements Runnable {
 
     public void setBackgroundColor(Color color) {
         if (color != null) {
-            bg.set(color);
+            bgColor.set(color);
         }
     }
 
@@ -438,11 +362,24 @@ public class Spriter extends JFrame implements Runnable {
 
     public class Renderer extends PainterChain {
 
+        private int rps;
+        private long rpsCounterStart = 0;
+        private AtomicInteger rpsCounter = new AtomicInteger(0);
+
+        AtomicReference<Double>
+                viewportWidth = new AtomicReference<>(2d),
+                viewportHeight = new AtomicReference<>(2d),
+                viewportShiftX = new AtomicReference<>(0d),
+                viewportShiftY = new AtomicReference<>(0d),
+                viewportShiftA = new AtomicReference<>(0d);
+
+        AtomicBoolean bilinearInterpolation = new AtomicBoolean(true);
+        AtomicBoolean antialiasing = new AtomicBoolean(true);
+
         public Renderer() {
         }
 
         public Renderer(Renderer proto) {
-            this.optimizationLevel = proto.optimizationLevel;
             this.bilinearInterpolation = new AtomicBoolean(proto.bilinearInterpolation.get());
             this.antialiasing = new AtomicBoolean(proto.antialiasing.get());
             this.debug = new AtomicBoolean(proto.debug.get());
@@ -451,25 +388,12 @@ public class Spriter extends JFrame implements Runnable {
             this.viewportShiftX = new AtomicReference<>(proto.viewportShiftX.get());
             this.viewportShiftY = new AtomicReference<>(proto.viewportShiftY.get());
             this.viewportShiftA = new AtomicReference<>(proto.viewportShiftA.get());
-            this.ignoredLayers = new HashMap<>(proto.ignoredLayers);
         }
 
-        public static final int O_FULL_TRANSFORM = 0;
-        public static final int O_SCALING_CACHE = 1;
-        public static final int O_SCALING_CACHE_AND_ANGLE_0 = 2;
+        private AtomicBoolean debug = new AtomicBoolean(false);
 
-        int optimizationLevel = O_FULL_TRANSFORM;
+        private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
 
-        public void setOptimizationLevel(int optimizationLevel) {
-            this.optimizationLevel = optimizationLevel;
-        }
-
-        AtomicReference<Double>
-                viewportWidth = new AtomicReference<>(2d),
-                viewportHeight = new AtomicReference<>(2d),
-                viewportShiftX = new AtomicReference<>(0d),
-                viewportShiftY = new AtomicReference<>(0d),
-                viewportShiftA = new AtomicReference<>(0d);
 
         /**
          * Set new viewport width.
@@ -563,37 +487,6 @@ public class Spriter extends JFrame implements Runnable {
             return new Point(screenX, screenY);
         }
 
-        Map<Integer, AtomicBoolean> ignoredLayers = new HashMap<>();
-
-        /**
-         * Reenable disabled layer.
-         */
-        public void enableLayer(int layer) {
-            AtomicBoolean b = ignoredLayers.get(layer);
-            if (b == null) {
-                b = new AtomicBoolean(false);
-                ignoredLayers.put(layer, b);
-            } else {
-                b.set(false);
-            }
-        }
-
-        /**
-         * Disable layer. Sprites contained by this layer won't be rendered.
-         */
-        public void disableLayer(int layer) {
-            AtomicBoolean b = ignoredLayers.get(layer);
-            if (b == null) {
-                b = new AtomicBoolean(true);
-                ignoredLayers.put(layer, b);
-            } else {
-                b.set(true);
-            }
-        }
-
-        AtomicBoolean bilinearInterpolation = new AtomicBoolean(true);
-        AtomicBoolean antialiasing = new AtomicBoolean(true);
-
         /**
          * Images antialiasing.
          * <br/>
@@ -612,8 +505,6 @@ public class Spriter extends JFrame implements Runnable {
             this.bilinearInterpolation.set(bilinearInterpolation);
         }
 
-        private AtomicBoolean debug = new AtomicBoolean(false);
-
         /**
          * Show debug info
          */
@@ -621,12 +512,16 @@ public class Spriter extends JFrame implements Runnable {
             this.debug.set(debug);
         }
 
-        private TreeMap<Integer, ArrayList<Sprite>> layers = new TreeMap<>();
-
         public void render(Graphics2D g, int width, int height) {
+            if (System.currentTimeMillis() - rpsCounterStart > 1000) {
+                rps = rpsCounter.getAndSet(0);
+                rpsCounterStart = System.currentTimeMillis();
+            }
 
-            g.setColor(bg.get());
-            g.setBackground(bg.get());
+            rpsCounter.incrementAndGet();
+
+            g.setColor(bgColor.get());
+            g.setBackground(bgColor.get());
             g.fillRect(0, 0, width, height);
 
             // clear layers
@@ -649,13 +544,6 @@ public class Spriter extends JFrame implements Runnable {
                         }
                         list.add(sprite);
                     }
-                }
-            }
-
-            // remove ignored layers
-            for (Map.Entry<Integer, AtomicBoolean> entry : ignoredLayers.entrySet()) {
-                if (entry.getValue().get()) {
-                    layers.get(entry.getKey()).clear();
                 }
             }
 
@@ -726,51 +614,19 @@ public class Spriter extends JFrame implements Runnable {
                     g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, bilinearInterpolation.get() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, sprite.alpha.get().floatValue()));
 
-                    if (optimizationLevel == O_FULL_TRANSFORM || sprite.fastScaling.get()) {
-                        AffineTransform trans = new AffineTransform();
-                        trans.translate(ix, iy);
+                    AffineTransform trans = new AffineTransform();
+                    trans.translate(ix, iy);
 
-                        trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
-                        trans.rotate(pa + sprite.a.get());
-                        trans.scale(1d * iw / sprite.imgW, 1d * ih / sprite.imgH);
-                        trans.translate(sprite.dx.get() * size / (1d * iw / sprite.imgW), sprite.dy.get() * size / (1d * ih / sprite.imgH));
+                    trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
+                    trans.rotate(pa + sprite.a.get());
+                    trans.scale(1d * iw / sprite.proto.frmW, 1d * ih / sprite.proto.frmH);
+                    trans.translate(sprite.dx.get() * size / (1d * iw / sprite.proto.frmW), sprite.dy.get() * size / (1d * ih / sprite.proto.frmH));
 
-                        trans.translate(sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
-                        trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
-                        trans.translate(-sprite.w.get() / 2 * size / (1d * iw / sprite.imgW), -sprite.h.get() / 2 * size / (1d * ih / sprite.imgH));
+                    trans.translate(sprite.w.get() / 2 * size / (1d * iw / sprite.proto.frmW), sprite.h.get() / 2 * size / (1d * ih / sprite.proto.frmH));
+                    trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
+                    trans.translate(-sprite.w.get() / 2 * size / (1d * iw / sprite.proto.frmW), -sprite.h.get() / 2 * size / (1d * ih / sprite.proto.frmH));
 
-                        g.drawRenderedImage(sprite.getScaled(sprite.imgW, sprite.imgH), trans);
-
-                    } else if (optimizationLevel == O_SCALING_CACHE || pa + sprite.a.get() != 0) {
-                        AffineTransform trans = new AffineTransform();
-                        trans.translate(ix, iy);
-
-                        trans.translate(-sprite.dx.get() * size, -sprite.dy.get() * size);
-                        trans.rotate(pa + sprite.a.get());
-                        trans.translate(sprite.dx.get() * size, sprite.dy.get() * size);
-
-                        trans.translate(sprite.w.get() / 2 * size, sprite.h.get() / 2 * size);
-                        trans.scale(sprite.flipX.get() ? -1 : 1, sprite.flipY.get() ? -1 : 1);
-                        trans.translate(-sprite.w.get() / 2 * size, -sprite.h.get() / 2 * size);
-
-                        g.drawRenderedImage(sprite.getScaled((int) Math.ceil(iw), (int) Math.ceil(ih)), trans);
-
-                    } else {
-                        BufferedImage scaled = sprite.getScaled((int) Math.ceil(iw), (int) Math.ceil(ih));
-                        int rx = (int) Math.floor(ix);
-                        int ry = (int) Math.floor(iy);
-                        int rw = scaled.getWidth();
-                        int rh = scaled.getHeight();
-                        if (sprite.flipX.get()) {
-                            rx += rw;
-                            rw *= -1;
-                        }
-                        if (sprite.flipY.get()) {
-                            ry += rh;
-                            rh *= -1;
-                        }
-                        g.drawImage(scaled, rx, ry, rw, rh, null);
-                    }
+                    g.drawRenderedImage(sprite.getFrame(), trans);
                 }
             }
 
@@ -799,63 +655,6 @@ public class Spriter extends JFrame implements Runnable {
                 g.drawString("OBJ: " + drawCounter, 1, 61);
             }
         }
-    }
-
-    BufferedImage getScaledInstance(BufferedImage img,
-                                    int targetWidth,
-                                    int targetHeight) {
-        int type = (img.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
-        BufferedImage ret = img;
-        int w = img.getWidth();
-        int h = img.getHeight();
-        boolean scaleDownW = w >= targetWidth;
-        boolean scaleDownH = h >= targetHeight;
-
-        do {
-            if (scaleDownW && w > targetWidth) {
-                w /= 2;
-                if (w < targetWidth) {
-                    w = targetWidth;
-                }
-            }
-
-            if (scaleDownH && h > targetHeight) {
-                h /= 2;
-                if (h < targetHeight) {
-                    h = targetHeight;
-                }
-            }
-
-            if (!scaleDownW && w < targetWidth) {
-                w *= 2;
-                if (w > targetWidth) {
-                    w = targetWidth;
-                }
-            }
-
-            if (!scaleDownH && h < targetHeight) {
-                h *= 2;
-                if (h > targetHeight) {
-                    h = targetHeight;
-                }
-            }
-
-            BufferedImage tmp = new BufferedImage(w, h, type);
-            Graphics2D g2 = tmp.createGraphics();
-            if (smoothScaling) {
-                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            } else {
-                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-            }
-            g2.drawImage(ret, 0, 0, w, h, null);
-            g2.dispose();
-
-            ret = tmp;
-        } while (w != targetWidth || h != targetHeight);
-
-        return ret;
     }
 
     /**
@@ -914,23 +713,19 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     /**
-     * Create new sprite prototype. It's invisible and has zero width and height.
+     * Create new sprite prototype.
      *
      * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
      * @param imageCenterY Distance from top side to center of image.
      * @return new sprite prototype
      */
-    public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY) {
-        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, 0, 0).setVisible(false);
-        synchronized (sprites) {
-            sprites.add(sprite);
-        }
-        return sprite;
+    public Proto createProto(BufferedImage image, double imageCenterX, double imageCenterY) {
+        return new Proto(image, imageCenterX, imageCenterY, -1, -1);
     }
 
     /**
-     * Create new sprite prototype. It's invisible and has zero width and height.
+     * Create new animated sprite prototype.
      *
      * @param image        Original image of new sprite.
      * @param imageCenterX Distance from left side to center of image.
@@ -939,45 +734,20 @@ public class Spriter extends JFrame implements Runnable {
      * @param frameHeight  Single animation frame height.
      * @return new sprite prototype
      */
-    public Sprite createSpriteProto(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
-        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, 0, 0).setVisible(false);
-        synchronized (sprites) {
-            sprites.add(sprite);
-        }
-        return sprite;
-    }
-
-    /**
-     * Create new font sprite prototype. It's invisible and has zero width and height.
-     *
-     * @param image        Original image of new sprite.
-     * @param imageCenterX Distance from left side to center of image.
-     * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth   Single animation frame wifth.
-     * @param frameHeight  Single animation frame height.
-     * @param symbols      Array of symbols values in font. Example "abc\ndef\ghi".
-     * @return new sprite prototype
-     */
-    public Font createFont(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, String symbols) {
-        Font sprite = new Font(image, imageCenterX, imageCenterY, frameWidth, frameHeight, 0, 0, symbols).setVisible(false);
-        synchronized (sprites) {
-            sprites.add(sprite);
-        }
-        return sprite;
+    public Proto createProto(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
+        return new Proto(image, imageCenterX, imageCenterY, frameWidth, frameHeight);
     }
 
     /**
      * Create new sprite.
      *
-     * @param image        Original image of new sprite.
-     * @param imageCenterX Distance from left side to center of image.
-     * @param imageCenterY Distance from top side to center of image.
+     * @param proto        Sprite prototype.
      * @param objectWidth  Rendering width.
      * @param objectHeight Rendering height.
      * @return new sprite
      */
-    public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth, double objectHeight) {
-        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, objectWidth, objectHeight);
+    public Sprite createSprite(Proto proto, double objectWidth, double objectHeight) {
+        Sprite sprite = new Sprite(proto, objectWidth, objectHeight);
         synchronized (sprites) {
             sprites.add(sprite);
         }
@@ -989,89 +759,26 @@ public class Spriter extends JFrame implements Runnable {
      * <br/>
      * Rendering height will be proportional to width.
      *
-     * @param image        Original image of new sprite.
-     * @param imageCenterX Distance from left side to center of image.
-     * @param imageCenterY Distance from top side to center of image.
-     * @param objectWidth  Rendering width.
+     * @param proto       Sprite prototype.
+     * @param objectWidth Rendering width.
      * @return new sprite
      */
-    public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, double objectWidth) {
-        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, -1, -1, objectWidth, -1d);
+    public Sprite createSprite(Proto proto, double objectWidth) {
+        Sprite sprite = new Sprite(proto, objectWidth, -1d);
         synchronized (sprites) {
             sprites.add(sprite);
         }
         return sprite;
     }
 
-    /**
-     * Create new animated sprite.
-     *
-     * @param image        Original image of new sprite.
-     * @param imageCenterX Distance from left side to center of image.
-     * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth   Single animation frame wifth.
-     * @param frameHeight  Single animation frame height.
-     * @param objectWidth  Rendering width.
-     * @param objectHeight Rendering height.
-     * @return new sprite
-     */
-    public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth, double objectHeight) {
-        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, objectHeight);
-        synchronized (sprites) {
-            sprites.add(sprite);
-        }
-        return sprite;
-    }
-
-    /**
-     * Create new animated sprite.
-     * <br/>
-     * Rendering height will be proportional to width.
-     *
-     * @param image        Original image of new sprite.
-     * @param imageCenterX Distance from left side to center of image.
-     * @param imageCenterY Distance from top side to center of image.
-     * @param frameWidth   Single animation frame wifth.
-     * @param frameHeight  Single animation frame height.
-     * @param objectWidth  Rendering width.
-     * @return new sprite
-     */
-    public Sprite createSprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth) {
-        Sprite sprite = new Sprite(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, -1d);
-        synchronized (sprites) {
-            sprites.add(sprite);
-        }
-        return sprite;
-    }
-
-    public class Sprite {
-
-        AtomicReference<Double> x, y, a, w, h, dx, dy;
-
+    public class Proto {
         BufferedImage img;
-        AtomicBoolean fastScaling;
-        AtomicBoolean disableCache;
         private BufferedImage[][] scaledImg;
         int imgW, imgH;
         int frmW, frmH;
         double imgCX, imgCY;
-        AtomicInteger layer;
-        AtomicInteger frameX, frameY;
-        AtomicBoolean visible;
-        AtomicBoolean remove;
-        AtomicBoolean hud;
-        AtomicBoolean flipX, flipY;
 
-        AtomicReference<Double> alpha;
-
-        AtomicReference<Sprite> parent;
-
-        Sprite() {
-            imgW = 0;
-            imgH = 0;
-        }
-
-        public Sprite(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth, double objectHeight) {
+        public Proto(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
             this.img = image;
             this.imgW = img.getWidth();
             this.imgH = img.getHeight();
@@ -1088,13 +795,53 @@ public class Spriter extends JFrame implements Runnable {
             this.frmW = frameWidth;
             this.frmH = frameHeight;
 
-            if (objectHeight < 0) {
-                objectHeight = objectWidth * frmH / frmW;
-            }
-
             scaledImg = new BufferedImage[imgW / frmW + 1][imgH / frmH + 1];
-            this.fastScaling = new AtomicBoolean(false);
-            this.disableCache = new AtomicBoolean(false);
+        }
+
+        protected BufferedImage getFrame(int frameX, int frameY) {
+            synchronized (scaledImg) {
+                BufferedImage scaledFrame = scaledImg[frameX][frameY];
+                if (scaledFrame == null) {
+                    if (imgW == frmW && imgH == frmH) {
+                        scaledFrame = img;
+                    } else {
+                        scaledFrame = img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH);
+                    }
+                    scaledImg[frameX][frameY] = scaledFrame;
+                }
+                return scaledFrame;
+            }
+        }
+
+        public Sprite newInstance(double objectWidth) {
+            return createSprite(this, objectWidth);
+        }
+
+        public Sprite newInstance(double objectWidth, double objectHeight) {
+            return createSprite(this, objectWidth, objectHeight);
+        }
+    }
+
+    public class Sprite {
+
+        Proto proto;
+
+        AtomicReference<Double> x, y, a, w, h, dx, dy;
+        AtomicInteger layer;
+        AtomicInteger frameX, frameY;
+        AtomicBoolean visible;
+        AtomicBoolean remove;
+        AtomicBoolean hud;
+        AtomicBoolean flipX, flipY;
+        AtomicReference<Double> alpha;
+        AtomicReference<Sprite> parent;
+
+        public Sprite(Proto proto, double objectWidth, double objectHeight) {
+            this.proto = proto;
+
+            if (objectHeight < 0) {
+                objectHeight = objectWidth * proto.frmH / proto.frmW;
+            }
 
             this.x = new AtomicReference<>(0d);
             this.y = new AtomicReference<>(0d);
@@ -1117,22 +864,12 @@ public class Spriter extends JFrame implements Runnable {
 
             this.w.set(objectWidth);
             this.h.set(objectHeight);
-            this.dx.set(-(objectWidth * imageCenterX / frmW));
-            this.dy.set(-(objectHeight * imageCenterY / frmH));
+            this.dx.set(-(objectWidth * proto.imgCX / proto.frmW));
+            this.dy.set(-(objectHeight * proto.imgCY / proto.frmH));
         }
 
         public Sprite(Sprite sprite) {
-            this.img = sprite.img;
-            this.imgW = sprite.imgW;
-            this.imgH = sprite.imgH;
-            this.imgCX = sprite.imgCX;
-            this.imgCY = sprite.imgCY;
-            this.frmW = sprite.frmW;
-            this.frmH = sprite.frmH;
-
-            scaledImg = new BufferedImage[imgW / frmW + 1][imgH / frmH + 1];
-            this.fastScaling = new AtomicBoolean(sprite.fastScaling.get());
-            this.disableCache = new AtomicBoolean(sprite.disableCache.get());
+            this.proto = sprite.proto;
 
             this.x = new AtomicReference<>(sprite.x.get());
             this.y = new AtomicReference<>(sprite.y.get());
@@ -1145,11 +882,11 @@ public class Spriter extends JFrame implements Runnable {
             this.frameX = new AtomicInteger(sprite.frameX.get());
             this.frameY = new AtomicInteger(sprite.frameY.get());
             this.visible = new AtomicBoolean(sprite.visible.get());
-            this.parent = new AtomicReference<>();
-            this.remove = new AtomicBoolean(false);
-            this.hud = new AtomicBoolean(false);
-            this.flipX = new AtomicBoolean(false);
-            this.flipY = new AtomicBoolean(false);
+            this.parent = new AtomicReference<>(sprite.parent.get());
+            this.remove = new AtomicBoolean(sprite.remove.get());
+            this.hud = new AtomicBoolean(sprite.hud.get());
+            this.flipX = new AtomicBoolean(sprite.flipX.get());
+            this.flipY = new AtomicBoolean(sprite.flipY.get());
 
             this.alpha = new AtomicReference<>(sprite.alpha.get());
         }
@@ -1253,7 +990,7 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setWidth(double w) {
             this.w.set(w);
-            this.dx.set(-(w * imgCX / frmW));
+            this.dx.set(-(w * proto.imgCX / proto.frmW));
             return this;
         }
 
@@ -1262,8 +999,8 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setWidthProportional(double w) {
             this.w.set(w);
-            this.dx.set(-(w * imgCX / frmW));
-            setHeight(w * frmH / frmW);
+            this.dx.set(-(w * proto.imgCX / proto.frmW));
+            setHeight(w * proto.frmH / proto.frmW);
             return this;
         }
 
@@ -1272,7 +1009,7 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setHeight(double h) {
             this.h.set(h);
-            this.dy.set(-(h * imgCY / frmH));
+            this.dy.set(-(h * proto.imgCY / proto.frmH));
             return this;
         }
 
@@ -1281,8 +1018,8 @@ public class Spriter extends JFrame implements Runnable {
          */
         public Sprite setHeightProportional(double h) {
             this.h.set(h);
-            this.dy.set(-(h * imgCY / frmH));
-            setWidth(h * frmW / frmH);
+            this.dy.set(-(h * proto.imgCY / proto.frmH));
+            setWidth(h * proto.frmW / proto.frmH);
             return this;
         }
 
@@ -1309,54 +1046,10 @@ public class Spriter extends JFrame implements Runnable {
             return this;
         }
 
-        BufferedImage getScaled(int targetWidth, int targetHeight) {
-            return getScaled(targetWidth, targetHeight, frameX.get(), frameY.get());
+        BufferedImage getFrame() {
+            return proto.getFrame(frameX.get(), frameY.get());
         }
 
-        protected BufferedImage getScaled(int targetWidth, int targetHeight, int frameX, int frameY) {
-            synchronized (scaledImg) {
-                BufferedImage scaledFrame = scaledImg[frameX][frameY];
-                if (!fastScaling.get()) {
-                    if (disableCache.get() || scaledFrame == null || targetWidth != scaledFrame.getWidth() || targetHeight != scaledFrame.getHeight()) {
-                        scaledFrame = getScaledInstance(img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH),
-                                targetWidth, targetHeight);
-                        scaledImg[frameX][frameY] = scaledFrame;
-                    }
-                } else {
-                    if (disableCache.get() || scaledFrame == null) {
-                        if (imgW == frmW && imgH == frmH) {
-                            scaledFrame = img;
-                        } else {
-                            scaledFrame = img.getSubimage(frameX * frmW, frameY * frmH, frmW, frmH);
-                        }
-                        scaledImg[frameX][frameY] = scaledFrame;
-                    }
-                }
-                return scaledFrame;
-            }
-        }
-
-        /**
-         * Do scaling sprites within affine transform. It's fast, but image may become blurred.
-         * <br/>
-         * Default is false
-         */
-        public Sprite setFastScaling(boolean fastScaling) {
-            this.fastScaling.set(fastScaling);
-            renewImage();
-            return this;
-        }
-
-        /**
-         * Do not cache cropped and scaled images.
-         * <br/>
-         * Default is false
-         */
-        public Sprite setDisableCache(boolean disableCache) {
-            this.disableCache.set(disableCache);
-            renewImage();
-            return this;
-        }
 
         /**
          * Set current frame of animated sprite.
@@ -1393,27 +1086,14 @@ public class Spriter extends JFrame implements Runnable {
         }
 
         /**
-         * Create a ghost linked to sprite. All properties will be copied from sprite.
-         * <br/>
-         * Ghost have it's own position, angle, layer, animation frame, alpha and visibility.
+         * Create new instance of sprite. Image data will be shared between all instances.
          */
-        public Sprite createGhost() {
-            SpriteGhost ghost = new SpriteGhost(this);
+        public Sprite newInstance() {
+            Sprite inst = new Sprite(this);
             synchronized (sprites) {
-                sprites.add(ghost);
+                sprites.add(inst);
             }
-            return ghost;
-        }
-
-        /**
-         * Create a copy of sprite.
-         */
-        public Sprite clone() {
-            Sprite sprite = new Sprite(this);
-            synchronized (sprites) {
-                sprites.add(sprite);
-            }
-            return sprite;
+            return inst;
         }
 
         /**
@@ -1431,177 +1111,8 @@ public class Spriter extends JFrame implements Runnable {
             return this;
         }
 
-        /**
-         * Notify sprite about image changes. Cached frames will be renewed.
-         */
-        public Sprite renewImage() {
-            synchronized (scaledImg) {
-                for (int x = 0; x < scaledImg.length; x++) {
-                    for (int y = 0; y < scaledImg[x].length; y++) {
-                        scaledImg[x][y] = null;
-                    }
-                }
-                return this;
-            }
-        }
-
         public void setAlpha(double alpha) {
             this.alpha.set(alpha);
-        }
-    }
-
-    public class SpriteGhost extends Sprite {
-        Sprite sprite;
-
-        public SpriteGhost(Sprite sprite) {
-            this.sprite = sprite;
-
-            img = null;
-            imgW = sprite.imgW;
-            imgH = sprite.imgH;
-            frmH = sprite.frmH;
-            frmW = sprite.frmW;
-            imgCX = sprite.imgCX;
-            imgCY = sprite.imgCY;
-
-            this.fastScaling = sprite.fastScaling;
-            this.disableCache = sprite.disableCache;
-
-            this.x = new AtomicReference<>(sprite.x.get());
-            this.y = new AtomicReference<>(sprite.y.get());
-            this.a = new AtomicReference<>(sprite.a.get());
-
-            this.w = sprite.w;
-            this.h = sprite.h;
-            this.dx = sprite.dx;
-            this.dy = sprite.dy;
-            this.layer = new AtomicInteger(sprite.layer.get());
-            this.frameX = new AtomicInteger(sprite.frameX.get());
-            this.frameY = new AtomicInteger(sprite.frameY.get());
-            this.visible = new AtomicBoolean(sprite.visible.get());
-            this.parent = new AtomicReference<>();
-            this.remove = new AtomicBoolean(false);
-            this.hud = new AtomicBoolean(sprite.hud.get());
-            this.flipX = new AtomicBoolean(sprite.flipX.get());
-            this.flipY = new AtomicBoolean(sprite.flipY.get());
-
-            this.alpha = new AtomicReference<>(sprite.alpha.get());
-        }
-
-        @Override
-        BufferedImage getScaled(int targetWidth, int targetHeight) {
-            return sprite.getScaled(targetWidth, targetHeight, frameX.get(), frameY.get());
-        }
-
-        @Override
-        public Sprite clone() {
-            Sprite ghost = sprite.createGhost();
-            ghost.x.set(x.get());
-            ghost.y.set(y.get());
-            ghost.a.set(a.get());
-
-            ghost.layer.set(layer.get());
-            ghost.frameX.set(frameX.get());
-            ghost.frameY.set(frameY.get());
-            ghost.visible.set(visible.get());
-            ghost.parent.set(parent.get());
-            ghost.remove.set(remove.get());
-            ghost.hud.set(hud.get());
-            ghost.flipX.set(flipX.get());
-            ghost.flipY.set(flipY.get());
-            ghost.alpha.set(alpha.get());
-
-            return ghost;
-        }
-    }
-
-    public class Font extends Sprite {
-        Map<Character, Point> symbolsMap;
-
-        public Font() {
-        }
-
-        public Font(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight, double objectWidth, double objectHeight, String symbols) {
-            super(image, imageCenterX, imageCenterY, frameWidth, frameHeight, objectWidth, objectHeight);
-
-            symbolsMap = new HashMap<>();
-            int x = 0, y = 0;
-            for (char c : symbols.toCharArray()) {
-                if (c == '\n') {
-                    x = 0;
-                    y++;
-                } else {
-                    symbolsMap.put(c, new Point(x, y));
-                    x++;
-                }
-            }
-        }
-
-        public Font(Font font) {
-            super(font);
-            this.symbolsMap = font.symbolsMap;
-        }
-
-        public Sprite getChar(char c) {
-            Point point = symbolsMap.get(c);
-            if (point == null) {
-                point = new Point(0, 0);
-            }
-            return clone().setFrame((int) point.getX()).setFrameRow((int) point.getY());
-        }
-
-        @Override
-        public Font setAngle(double a) {
-            super.setAngle(a);
-            return this;
-        }
-
-        @Override
-        public Font setFlipX(boolean flipx) {
-            super.setFlipX(flipx);
-            return this;
-        }
-
-        @Override
-        public Font setFlipY(boolean flipy) {
-            super.setFlipY(flipy);
-            return this;
-        }
-
-        @Override
-        public Font setWidth(double w) {
-            super.setWidth(w);
-            return this;
-        }
-
-        @Override
-        public Font setWidthProportional(double w) {
-            super.setWidthProportional(w);
-            return this;
-        }
-
-        @Override
-        public Font setHeight(double h) {
-            super.setHeight(h);
-            return this;
-        }
-
-        @Override
-        public Font setHeightProportional(double h) {
-            super.setHeightProportional(h);
-            return this;
-        }
-
-        @Override
-        public Font setSquareSide(double wh) {
-            super.setSquareSide(wh);
-            return this;
-        }
-
-        @Override
-        public Font setVisible(boolean visible) {
-            super.setVisible(visible);
-            return this;
         }
     }
 

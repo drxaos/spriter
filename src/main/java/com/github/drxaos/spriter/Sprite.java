@@ -405,9 +405,10 @@ public class Sprite {
      * <br/>
      * Default is 1
      */
-    public void setAlpha(double alpha) {
+    public Sprite setAlpha(double alpha) {
         dirty();
         active[ALPHA] = Double.doubleToRawLongBits(alpha);
+        return this;
     }
 
     Sprite getParent() {

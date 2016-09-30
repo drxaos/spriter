@@ -1,5 +1,6 @@
 package com.github.drxaos.spriter.examples;
 
+import com.github.drxaos.spriter.Sprite;
 import com.github.drxaos.spriter.Spriter;
 import com.github.drxaos.spriter.SpriterUtils;
 
@@ -37,19 +38,21 @@ public class Pixels {
         spriter.setViewportShiftY(-0.3);
         BufferedImage tilesImage = loadImage("/penguin.png");
         BufferedImage iglooImage = tilesImage.getSubimage(1100, 0, 880, 440);
-        Spriter.Sprite character = spriter.createProto(tilesImage, 110, 210, 220, 220).newInstance(0.2).setLayer(L_PENGUIN);
-        Spriter.Sprite tile = character.newInstance().setFrame(0).setFrameRow(1).setY(0.2).setVisible(false).setLayer(L_TILES);
+        Sprite character = spriter.createProto(tilesImage, 110, 210, 220, 220).newInstance(0.2).setZ(L_PENGUIN);
+        Sprite tile = character.newInstance().setFrame(0).setFrameRow(1).setY(0.2).setVisible(false).setZ(L_TILES);
         for (double x = -1; x <= 1; x += 0.2) {
             tile.newInstance().setX(x).setVisible(true);
         }
         tile.newInstance().setPos(-0.3, -0.0).setFrame(1).setVisible(true);
         tile.newInstance().setPos(-0.3, -0.2).setFrame(2).setVisible(true);
 
-        Spriter.Sprite igloo = spriter.createProto(iglooImage, 110, 430).newInstance(0.8).setLayer(L_TILES);
+        Sprite igloo = spriter.createProto(iglooImage, 110, 430).newInstance(0.8).setZ(L_TILES);
 
         int f = 0, st = 1;
         double x = 0;
         while (true) {
+            spriter.beginFrame();
+
             f++;
             x += 0.01 * st;
             if (x > 0.9) {
@@ -60,8 +63,7 @@ public class Pixels {
             }
             character.setFrame(((f / 5) % 4) + 1).setX(x).setFlipX(st < 0);
 
-            spriter.render();
-            Thread.sleep(30);
+            spriter.endFrame();
         }
     }
 

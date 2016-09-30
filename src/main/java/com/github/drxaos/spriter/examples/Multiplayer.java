@@ -1,7 +1,6 @@
 package com.github.drxaos.spriter.examples;
 
-import com.github.drxaos.spriter.Spriter;
-import com.github.drxaos.spriter.SpriterUtils;
+import com.github.drxaos.spriter.*;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -38,7 +37,7 @@ public class Multiplayer {
             player1_a, player1_x, player1_y, player1_vx, player1_vy,
             player2_a, player2_x, player2_y, player2_vx, player2_vy;
 
-    static Spriter.Sprite
+    static Sprite
             player_green,
             player_green_tail,
             player_red,
@@ -54,18 +53,18 @@ public class Multiplayer {
             ufo_vx = new double[10000],
             ufo_vy = new double[10000];
 
-    static Spriter.Sprite[] ufo = new Spriter.Sprite[10000];
+    static Sprite[] ufo = new Sprite[10000];
 
     static double[]
             star_sc = new double[10000],
             star_d = new double[10000],
             star_v = new double[10000];
-    static Spriter.Sprite[] star = new Spriter.Sprite[10000];
+    static Sprite[] star = new Sprite[10000];
 
-    static class TwinView extends Spriter.PainterChain {
+    static class TwinView extends RenderChain {
 
         Spriter spriter;
-        Spriter.Renderer rendererLeft, rendererRight;
+        Renderer rendererLeft, rendererRight;
         VolatileImage left, right;
         Graphics2D graphicsLeft, graphicsRight;
         ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -138,13 +137,13 @@ public class Multiplayer {
         spriter.setViewportHeight(15);
 
         spriter.setBackgroundColor(Color.BLACK);
-        Spriter.Sprite loading = spriter.createProto(SpriterUtils.loadImageFromResource("/loading.png"), 367 / 2, 62 / 2).newInstance(5);
-        spriter.render();
+        Sprite loading = spriter.createProto(SpriterUtils.loadImageFromResource("/loading.png"), 367 / 2, 62 / 2).newInstance(5);
+        spriter.endFrame();
 
         loading.setVisible(false);
 
         BufferedImage background_image = SpriterUtils.loadImageFromResource("/background.jpg");
-        Spriter.Sprite background = spriter.createProto(background_image, 512, 512).newInstance(25, 25).setLayer(LAYER_BG);
+        Sprite background = spriter.createProto(background_image, 512, 512).newInstance(25, 25).setZ(LAYER_BG);
         for (int x = 0; x <= 100; x += 25) {
             for (int y = 0; y <= 100; y += 25) {
                 background.newInstance().setPos(x, y).setVisible(true);
@@ -159,15 +158,15 @@ public class Multiplayer {
         BufferedImage meteor_image = SpriterUtils.loadImageFromResource("/meteor.png");
         BufferedImage map_image = SpriterUtils.loadImageFromResource("/map.png");
 
-        Spriter.Sprite ufoPrototype = spriter.createProto(ufo_image, 45, 45).newInstance(1, 1).setLayer(LAYER_UFO);
-        Spriter.Sprite wallPrototype = spriter.createProto(meteor_image, 50, 50).newInstance(1, 1).setLayer(LAYER_WALL);
-        Spriter.Sprite starPrototype = spriter.createProto(star_image, 50, 50).newInstance(0.5, 0.5).setLayer(LAYER_STAR);
-        Spriter.Sprite trg = spriter.createProto(SpriterUtils.loadImageFromResource("/point.png"), 256 / 2, 256 / 2).newInstance(0.5);
+        Sprite ufoPrototype = spriter.createProto(ufo_image, 45, 45).newInstance(1, 1).setZ(LAYER_UFO);
+        Sprite wallPrototype = spriter.createProto(meteor_image, 50, 50).newInstance(1, 1).setZ(LAYER_WALL);
+        Sprite starPrototype = spriter.createProto(star_image, 50, 50).newInstance(0.5, 0.5).setZ(LAYER_STAR);
+        Sprite trg = spriter.createProto(SpriterUtils.loadImageFromResource("/point.png"), 256 / 2, 256 / 2).newInstance(0.5);
 
-        player_green = spriter.createProto(player_green_image, 40, 50).newInstance(1).setLayer(LAYER_SHIP);
-        player_red = spriter.createProto(player_red_image, 40, 50).newInstance(1).setLayer(LAYER_SHIP);
+        player_green = spriter.createProto(player_green_image, 40, 50).newInstance(1).setZ(LAYER_SHIP);
+        player_red = spriter.createProto(player_red_image, 40, 50).newInstance(1).setZ(LAYER_SHIP);
 
-        Spriter.Sprite tailPrototype = spriter.createProto(tail_image, 41, 8).newInstance(0.4, 0.2).setX(-0.2).setLayer(LAYER_SHIP_TAIL);
+        Sprite tailPrototype = spriter.createProto(tail_image, 41, 8).newInstance(0.4, 0.2).setX(-0.2).setZ(LAYER_SHIP_TAIL);
         player_green_tail = tailPrototype.newInstance().setParent(player_green).setVisible(true);
         player_red_tail = tailPrototype.newInstance().setParent(player_red).setVisible(true);
 
@@ -230,11 +229,12 @@ public class Multiplayer {
         }
 
         spriter.setDebug(true);
-        spriter.setPainterChain(new TwinView(spriter));
+        spriter.setRenderChain(new TwinView(spriter));
 
-        Spriter.Control control = spriter.getControl();
+        Control control = spriter.getControl();
 
         while (true) {
+            spriter.beginFrame();
 
             if (control.isKeyDown(KeyEvent.VK_LEFT)) {
                 player1_a -= 0.06;
@@ -392,9 +392,7 @@ public class Multiplayer {
                 star[i].setWidthProportional(star_sc[i] + 0.2 * Math.sin(star_d[i]));
             }
 
-            spriter.render();
-
-            Thread.sleep(25);
+            spriter.endFrame();
         }
     }
 }

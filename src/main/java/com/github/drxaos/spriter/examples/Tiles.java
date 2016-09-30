@@ -1,7 +1,7 @@
 package com.github.drxaos.spriter.examples;
 
-import com.github.drxaos.spriter.Spriter;
-import com.github.drxaos.spriter.SpriterUtils;
+import com.github.drxaos.spriter.*;
+import com.github.drxaos.spriter.Point;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -37,15 +37,15 @@ public class Tiles {
     public static final int L_SHADOW = 2000;
     public static final int L_WIN = 2100;
 
-    static Spriter.Sprite tileProto, playerProto, numbersProto, hudProto;
+    static Sprite tileProto, playerProto, numbersProto, hudProto;
 
     static class Coin {
-        Spriter.Sprite sprite;
+        Sprite sprite;
         double x, y;
         int p, f;
         boolean taken = false;
 
-        public Coin(Spriter.Sprite sprite, double x, double y) {
+        public Coin(Sprite sprite, double x, double y) {
             this.sprite = sprite;
             this.x = x;
             this.y = y;
@@ -75,11 +75,11 @@ public class Tiles {
     }
 
     static class Key {
-        Spriter.Sprite sprite;
+        Sprite sprite;
         double x, y;
         boolean taken = false;
 
-        public Key(Spriter.Sprite sprite, double x, double y) {
+        public Key(Sprite sprite, double x, double y) {
             this.sprite = sprite;
             this.x = x;
             this.y = y;
@@ -100,10 +100,10 @@ public class Tiles {
     }
 
     static class Door {
-        Spriter.Sprite sprite, spriteTop;
+        Sprite sprite, spriteTop;
         double x, y;
 
-        public Door(Spriter.Sprite sprite, Spriter.Sprite spriteTop, double x, double y) {
+        public Door(Sprite sprite, Sprite spriteTop, double x, double y) {
             this.sprite = sprite;
             this.spriteTop = spriteTop;
             this.x = x;
@@ -122,11 +122,11 @@ public class Tiles {
         public static final int BOX = 2;
         public static final int WALL = 3;
 
-        Spriter.Sprite sprite;
+        Sprite sprite;
         int type;
         double x, y;
 
-        public Brick(Spriter.Sprite sprite, double x, double y, int type) {
+        public Brick(Sprite sprite, double x, double y, int type) {
             this.sprite = sprite;
             this.x = x;
             this.y = y;
@@ -135,11 +135,11 @@ public class Tiles {
     }
 
     static class Water {
-        Spriter.Sprite sprite0, sprite1, sprite2;
+        Sprite sprite0, sprite1, sprite2;
         double x, y;
         int p, f;
 
-        public Water(Spriter.Sprite sprite, double x, double y) {
+        public Water(Sprite sprite, double x, double y) {
             this.sprite1 = sprite;
             this.sprite2 = sprite.newInstance().setX(x + 1);
             this.sprite0 = sprite.newInstance().setX(x - 1);
@@ -157,12 +157,12 @@ public class Tiles {
     }
 
     static class Player {
-        Spriter.Sprite sprite;
+        Sprite sprite;
         double x, y, vx, vy, sx, sy;
         int state, statey;
         int f;
 
-        public Player(Spriter.Sprite sprite, double x, double y) {
+        public Player(Sprite sprite, double x, double y) {
             this.sprite = sprite;
             this.x = sx = x;
             this.y = sy = y;
@@ -297,6 +297,7 @@ public class Tiles {
 
         Spriter spriter = new Spriter("Tiles");
         spriter.setBackgroundColor(Color.decode("#D0F4F7"));
+        spriter.setBorderColor(Color.decode("#37878e"));
 
         spriter.setViewportWidth(9.75);
         spriter.setViewportHeight(9.75);
@@ -308,25 +309,25 @@ public class Tiles {
         BufferedImage numbersSpriteSheet = SpriterUtils.loadImageFromResource("/numbers.png");
         BufferedImage hudSpriteSheet = SpriterUtils.loadImageFromResource("/hud.png");
 
-        tileProto = spriter.createProto(tilesSpriteSheet, 35, 35, 70, 70).newInstance(1, 1).setLayer(L_TILE);
-        playerProto = spriter.createProto(playerSpriteSheet, 72 / 2, 97, 72, 97).newInstance(0.75).setLayer(L_PLAYER);
-        numbersProto = spriter.createProto(numbersSpriteSheet, 15, 20, 30, 40).newInstance(0.5).setLayer(L_HUD).setHud(true).setVisible(false);
-        hudProto = spriter.createProto(hudSpriteSheet, 25, 25, 50, 50).newInstance(0.7).setLayer(L_HUD).setHud(true).setVisible(false);
+        tileProto = spriter.createProto(tilesSpriteSheet, 35, 35, 70, 70).newInstance(1, 1).setZ(L_TILE);
+        playerProto = spriter.createProto(playerSpriteSheet, 72 / 2, 97, 72, 97).newInstance(0.75).setZ(L_PLAYER);
+        numbersProto = spriter.createProto(numbersSpriteSheet, 15, 20, 30, 40).newInstance(0.5).setZ(L_HUD).setHud(true).setVisible(false);
+        hudProto = spriter.createProto(hudSpriteSheet, 25, 25, 50, 50).newInstance(0.7).setZ(L_HUD).setHud(true).setVisible(false);
 
         hudProto.newInstance().setPos(-4.3, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
         numbersProto.newInstance().setPos(-3.75, -4.3).setVisible(true).setFrame(10).setFrameRow(0);
-        Spriter.Sprite n1 = numbersProto.newInstance().setPos(-3.25, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
-        Spriter.Sprite n2 = numbersProto.newInstance().setPos(-2.7, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        Sprite n1 = numbersProto.newInstance().setPos(-3.25, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
+        Sprite n2 = numbersProto.newInstance().setPos(-2.7, -4.3).setVisible(true).setFrame(0).setFrameRow(0);
         hudProto.newInstance().setPos(4.3, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
         hudProto.newInstance().setPos(4.0, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
         hudProto.newInstance().setPos(3.7, -4.3).setVisible(true).setFrame(1).setFrameRow(0);
-        Spriter.Sprite hudKey = hudProto.newInstance().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
+        Sprite hudKey = hudProto.newInstance().setPos(2.6, -4.3).setVisible(true).setFrame(1).setFrameRow(4);
 
-        HashMap<Spriter.Point, Brick> bricks = new HashMap<>();
-        HashMap<Spriter.Point, Coin> coins = new HashMap<>();
-        HashMap<Spriter.Point, Water> water = new HashMap<>();
+        HashMap<com.github.drxaos.spriter.Point, Brick> bricks = new HashMap<>();
+        HashMap<Point, Coin> coins = new HashMap<>();
+        HashMap<Point, Water> water = new HashMap<>();
         Key key = null;
-        Spriter.Sprite doorTop = null;
+        Sprite doorTop = null;
         Door door = null;
         Player player = null;
 
@@ -340,7 +341,7 @@ public class Tiles {
                 tx++;
 
                 if (c == '@') {
-                    Spriter.Sprite pl = playerProto.newInstance().setFrame(0).setFrameRow(0).setPos(tx, ty + 0.5).setVisible(true);
+                    Sprite pl = playerProto.newInstance().setFrame(0).setFrameRow(0).setPos(tx, ty + 0.5).setVisible(true);
                     player = new Player(pl, tx, ty + 0.5);
                     continue;
                 }
@@ -407,8 +408,8 @@ public class Tiles {
                         break;
                 }
                 if (fx >= 0 && fy >= 0) {
-                    Spriter.Point p = new Spriter.Point(tx, ty);
-                    Spriter.Sprite tile = tileProto.newInstance().setFrame(fx).setFrameRow(fy).setPos(p).setVisible(true).setLayer(l);
+                    Point p = new Point(tx, ty);
+                    Sprite tile = tileProto.newInstance().setFrame(fx).setFrameRow(fy).setPos(p).setVisible(true).setZ(l);
                     if (c == '#') {
                         bricks.put(p, new Brick(tile, tx, ty, Brick.ROCK));
                     }
@@ -440,17 +441,17 @@ public class Tiles {
             }
         }
 
-        for (Map.Entry<Spriter.Point, Brick> entry : bricks.entrySet()) {
+        for (Map.Entry<Point, Brick> entry : bricks.entrySet()) {
             if (entry.getValue().type != Brick.ROCK) {
                 continue;
             }
             double x = entry.getKey().getX();
             double y = entry.getKey().getY();
             int fx = 0;
-            Brick bleft = bricks.get(new Spriter.Point(x - 1, y));
-            Brick bup = bricks.get(new Spriter.Point(x, y - 1));
-            Brick bdown = bricks.get(new Spriter.Point(x, y + 1));
-            Brick bright = bricks.get(new Spriter.Point(x + 1, y));
+            Brick bleft = bricks.get(new Point(x - 1, y));
+            Brick bup = bricks.get(new Point(x, y - 1));
+            Brick bdown = bricks.get(new Point(x, y + 1));
+            Brick bright = bricks.get(new Point(x + 1, y));
             boolean left = bleft != null && bleft.type == Brick.ROCK;
             boolean up = bup != null && bup.type == Brick.ROCK;
             boolean down = bdown != null && bdown.type == Brick.ROCK;
@@ -481,7 +482,7 @@ public class Tiles {
         mediaPlayer.setAutoPlay(true);
         mediaPlayer.play();
 
-        Spriter.Control control = spriter.getControl();
+        Control control = spriter.getControl();
 
         int coinsCount = 0;
 
@@ -491,6 +492,7 @@ public class Tiles {
 
         int op = 0;
         while (true) {
+            spriter.beginFrame();
 
             op++;
             if (op < 100) {
@@ -521,20 +523,20 @@ public class Tiles {
                 double pml = player.x - player.sprite.getWidth() / 2 + 0.15;
                 double pmr = player.x + player.sprite.getWidth() / 2 - 0.15;
 
-                Brick dl = bricks.get(new Spriter.Point(Math.round(pl), Math.round(pb)));
-                Brick dr = bricks.get(new Spriter.Point(Math.round(pr), Math.round(pb)));
-                Brick ul = bricks.get(new Spriter.Point(Math.round(pl), Math.round(pt)));
-                Brick ur = bricks.get(new Spriter.Point(Math.round(pr), Math.round(pt)));
-                Brick ulh = bricks.get(new Spriter.Point(Math.round(plh), Math.round(pt)));
-                Brick urh = bricks.get(new Spriter.Point(Math.round(prh), Math.round(pt)));
-                Brick dlf = bricks.get(new Spriter.Point(Math.round(plf), Math.round(pb)));
-                Brick drf = bricks.get(new Spriter.Point(Math.round(prf), Math.round(pb)));
-                Brick ml = bricks.get(new Spriter.Point(Math.round(pml), Math.round(pm)));
-                Brick mr = bricks.get(new Spriter.Point(Math.round(pmr), Math.round(pm)));
-                Coin cul = coins.get(new Spriter.Point(Math.round(pml), Math.round(pct)));
-                Coin cur = coins.get(new Spriter.Point(Math.round(pmr), Math.round(pct)));
-                Coin cdl = coins.get(new Spriter.Point(Math.round(pml), Math.round(pcb)));
-                Coin cdr = coins.get(new Spriter.Point(Math.round(pmr), Math.round(pcb)));
+                Brick dl = bricks.get(new Point(Math.round(pl), Math.round(pb)));
+                Brick dr = bricks.get(new Point(Math.round(pr), Math.round(pb)));
+                Brick ul = bricks.get(new Point(Math.round(pl), Math.round(pt)));
+                Brick ur = bricks.get(new Point(Math.round(pr), Math.round(pt)));
+                Brick ulh = bricks.get(new Point(Math.round(plh), Math.round(pt)));
+                Brick urh = bricks.get(new Point(Math.round(prh), Math.round(pt)));
+                Brick dlf = bricks.get(new Point(Math.round(plf), Math.round(pb)));
+                Brick drf = bricks.get(new Point(Math.round(prf), Math.round(pb)));
+                Brick ml = bricks.get(new Point(Math.round(pml), Math.round(pm)));
+                Brick mr = bricks.get(new Point(Math.round(pmr), Math.round(pm)));
+                Coin cul = coins.get(new Point(Math.round(pml), Math.round(pct)));
+                Coin cur = coins.get(new Point(Math.round(pmr), Math.round(pct)));
+                Coin cdl = coins.get(new Point(Math.round(pml), Math.round(pcb)));
+                Coin cdr = coins.get(new Point(Math.round(pmr), Math.round(pcb)));
                 boolean stands = false;
                 if (dl == null && dr == null) {
                     player.fly(1, -1);
@@ -632,22 +634,22 @@ public class Tiles {
                 }
             }
 
-            spriter.render();
-            Thread.sleep(30);
+            spriter.endFrame();
         }
-        spriter.render();
 
         BufferedImage shadowImage = new BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR);
         shadowImage.setRGB(0, 0, 0);
-        Spriter.Sprite shadow = spriter.createProto(shadowImage, 0.5, 0.5).newInstance(10, 10).setLayer(L_SHADOW).setHud(true);
-        Spriter.Sprite win = spriter.createProto(SpriterUtils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2).newInstance(4).setLayer(L_WIN).setHud(true);
+        Sprite shadow = spriter.createProto(shadowImage, 0.5, 0.5).newInstance(10, 10).setZ(L_SHADOW).setHud(true);
+        Sprite win = spriter.createProto(SpriterUtils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2).newInstance(4).setZ(L_WIN).setHud(true);
 
         int f = 0;
         while (true) {
+            spriter.beginFrame();
+
             win.setWidthProportional(4 + Math.sin(0.2 * f++));
             shadowImage.setRGB(0, 0, Math.min(120, f) << 24);
-            spriter.render();
-            Thread.sleep(30);
+
+            spriter.endFrame();
         }
     }
 }

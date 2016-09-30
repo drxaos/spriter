@@ -1,6 +1,7 @@
 package com.github.drxaos.spriter.examples;
 
-import com.github.drxaos.spriter.Spriter;
+import com.github.drxaos.spriter.*;
+import com.github.drxaos.spriter.Point;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -13,7 +14,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CustomUi {
     static {
-        System.setProperty("sun.java2d.opengl", "True");
+        System.setProperty("sun.java2d.opengl", "true");
+        System.setProperty("sun.java2d.trace", "count");
         System.setProperty("sun.java2d.accthreshold", "0");
     }
 
@@ -38,10 +40,10 @@ public class CustomUi {
         return ImageIO.read(Animation.class.getResource(name));
     }
 
-    static Spriter.Proto flyProto;
+    static Proto flyProto;
 
     static class Fly {
-        Spriter.Sprite fSprite;
+        Sprite fSprite;
 
         double x, y, a, v, z, zf, vf;
         int f, b;
@@ -50,14 +52,14 @@ public class CustomUi {
         public Fly(double x, double y) {
             this.x = x;
             this.y = y;
-            fSprite = flyProto.newInstance(0.07).setLayer(L_FLY);
+            fSprite = flyProto.newInstance(0.07).setZ(L_FLY);
             zf = Math.random() * 100;
             vf = Math.random() * 100;
             c = Math.random() > 0.5;
-            fSprite.setPos(x, y).setWidthProportional(z).setLayer((int) (z * 1000));
+            fSprite.setPos(x, y).setWidthProportional(z).setZ((int) (z * 1000));
         }
 
-        public void fly(Spriter.Point p) {
+        public void fly(com.github.drxaos.spriter.Point p) {
             f++;
             fSprite.setFrame((f / 5) % 2);
 
@@ -94,7 +96,7 @@ public class CustomUi {
             zf += 0.02 + Math.random() * 0.01;
             z = (Math.cos(zf) + 2) / 50 + 0.01; // 0.03 - 0.07
 
-            fSprite.setPos(x, y).setWidthProportional(z).setLayer((int) (z * 1000));
+            fSprite.setPos(x, y).setWidthProportional(z).setZ((int) (z * 1000));
         }
 
         public void remove() {
@@ -165,10 +167,10 @@ public class CustomUi {
 
         flyProto = spriter.createProto(loadImage("/fly.png"), 17, 23, 40, 36);
 
-        Spriter.Sprite cursor = spriter.createSprite(spriter.createProto(loadImage("/cur1.png"), 7, 7), 0.08).setLayer(L_HUD_CURSOR);
-        Spriter.Sprite point = spriter.createSprite(spriter.createProto(loadImage("/point.png"), 256 / 2, 256 / 2), 0.025).setLayer(L_POINT).setSquareSide(0).setVisible(true);
+        Sprite cursor = spriter.createSprite(spriter.createProto(loadImage("/cur1.png"), 7, 7), 0.08).setZ(L_HUD_CURSOR);
+        Sprite point = spriter.createSprite(spriter.createProto(loadImage("/point.png"), 256 / 2, 256 / 2), 0.025).setZ(L_POINT).setSquareSide(0).setVisible(true);
 
-        Spriter.Control control = spriter.getControl();
+        Control control = spriter.getControl();
 
         ArrayList<Fly> flies = new ArrayList<>();
         flies.add(new Fly(0, 0));
@@ -176,9 +178,11 @@ public class CustomUi {
         flies.add(new Fly(0, 0));
 
         int pointSize = 0;
-        Spriter.Point m = new Spriter.Point(0, 0);
+        Point m = new Point(0, 0);
         while (true) {
-            Spriter.Click click = control.getClick();
+            spriter.beginFrame();
+
+            Click click = control.getClick();
             if (click != null) {
                 pointSize = 0;
                 point.setVisible(true).setPos(click);
@@ -222,8 +226,7 @@ public class CustomUi {
                 }
             }
 
-            spriter.render();
-            Thread.sleep(20);
+            spriter.endFrame();
         }
     }
 }

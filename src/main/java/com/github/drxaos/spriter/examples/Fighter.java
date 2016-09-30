@@ -1,5 +1,8 @@
 package com.github.drxaos.spriter.examples;
 
+import com.github.drxaos.spriter.Click;
+import com.github.drxaos.spriter.Control;
+import com.github.drxaos.spriter.Sprite;
 import com.github.drxaos.spriter.Spriter;
 
 import javax.imageio.ImageIO;
@@ -22,23 +25,25 @@ public class Fighter {
     public static void main(String[] args) throws IOException, InterruptedException {
 
         Spriter spriter = new Spriter("Fighter");
-        Spriter.Sprite cur1 = spriter.createProto(loadImage("/cur1.png"), 7, 7).newInstance(0.08).setLayer(LAYER_HUD);
-        Spriter.Sprite cur2 = spriter.createProto(loadImage("/cur2.png"), 7, 7).newInstance(0.08).setLayer(LAYER_HUD);
-        Spriter.Sprite fighter = spriter.createProto(loadImage("/fighter-01.png").getSubimage(3, 3, 713, 705), 354, 420).newInstance(0.25).setLayer(LAYER_AIR);
-        Spriter.Sprite target1 = spriter.createProto(loadImage("/target.png"), 125, 125).newInstance(0.1).setLayer(LAYER_TOP);
-        Spriter.Sprite target2 = target1.newInstance();
-        Spriter.Sprite point = spriter.createProto(loadImage("/point.png"), 256 / 2, 256 / 2).newInstance(1).setLayer(LAYER_GROUND);
-        Spriter.Control control = spriter.getControl();
+        Sprite cur1 = spriter.createProto(loadImage("/cur1.png"), 7, 7).newInstance(0.08).setZ(LAYER_HUD);
+        Sprite cur2 = spriter.createProto(loadImage("/cur2.png"), 7, 7).newInstance(0.08).setZ(LAYER_HUD);
+        Sprite fighter = spriter.createProto(loadImage("/fighter-01.png").getSubimage(3, 3, 713, 705), 354, 420).newInstance(0.25).setZ(LAYER_AIR);
+        Sprite target1 = spriter.createProto(loadImage("/target.png"), 125, 125).newInstance(0.1).setZ(LAYER_TOP);
+        Sprite target2 = target1.newInstance();
+        Sprite point = spriter.createProto(loadImage("/point.png"), 256 / 2, 256 / 2).newInstance(1).setZ(LAYER_GROUND);
+        Control control = spriter.getControl();
 
         point.setVisible(false);
         int pointSize = 0;
 
         double x = 0, y = 0, a = 0;
         while (true) {
+            spriter.beginFrame();
+
             cur1.setPos(control.getMousePos()).setVisible(!control.isButtonDown(MouseEvent.BUTTON1));
             cur2.setPos(control.getMousePos()).setVisible(control.isButtonDown(MouseEvent.BUTTON1));
 
-            Spriter.Click click = control.getClick();
+            Click click = control.getClick();
             if (click != null) {
                 pointSize = 0;
                 point.setVisible(true).setPos(click);
@@ -58,8 +63,7 @@ public class Fighter {
             target1.setX(x);
             target2.setY(y);
 
-            spriter.render();
-            Thread.sleep(40);
+            spriter.endFrame();
         }
     }
 

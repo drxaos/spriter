@@ -109,6 +109,7 @@ public class CustomUi {
         Spriter spriter = new Spriter("Custom UI");
         spriter.setMinimumSize(new Dimension(400, 400));
         spriter.setDebug(true);
+        spriter.setDebugGC(true);
 
         StatusBar statusBar = new StatusBar();
         spriter.getContentPane().add(statusBar, BorderLayout.SOUTH);

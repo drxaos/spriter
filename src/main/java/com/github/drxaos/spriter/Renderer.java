@@ -190,7 +190,7 @@ public class Renderer extends RenderChain {
 
             nextSprite:
             for (Sprite sprite : list) {
-                if (!sprite.snapshotGetVisible()) {
+                if (!sprite.snapshotGetVisible() || sprite.snapshotGetRemove()) {
                     continue;
                 }
 
@@ -213,21 +213,21 @@ public class Renderer extends RenderChain {
 
                 Sprite parent = sprite.snapshotGetParent();
                 while (parent != null) {
-                    if (!parent.getVisible()) {
+                    if (!parent.snapshotGetVisible() || parent.snapshotGetRemove()) {
                         continue nextSprite;
                     }
 
                     // rotating vector
-                    double oldX = parent.getX();
-                    double oldY = parent.getY();
+                    double oldX = parent.snapshotGetX();
+                    double oldY = parent.snapshotGetY();
                     double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
                     double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
 
                     px += rotX;
                     py += rotY;
-                    pa += parent.getAngle();
+                    pa += parent.snapshotGetAngle();
 
-                    parent = parent.getParent();
+                    parent = parent.snapshotGetParent();
                 }
 
                 // rotating vector

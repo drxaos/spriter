@@ -235,6 +235,7 @@ public class Sprite {
     public void remove() {
         dirty();
         active[FLAGS] |= FLAGS_REMOVE;
+        setParent(null);
     }
 
     double getX() {
@@ -332,7 +333,7 @@ public class Sprite {
         return this;
     }
 
-    boolean getRemove() {
+    boolean isRemoved() {
         return (active[FLAGS] & FLAGS_REMOVE) != 0;
     }
 
@@ -414,6 +415,15 @@ public class Sprite {
             return null;
         }
         return spriter.getSpriteByIndex((int) active[PARENT]);
+    }
+
+    int getParentId() {
+        return (int) active[PARENT];
+    }
+
+    public void setParentId(int id) {
+        dirty();
+        active[PARENT] = id;
     }
 
     /**

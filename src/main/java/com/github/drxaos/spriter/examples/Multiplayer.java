@@ -135,6 +135,7 @@ public class Multiplayer {
         Spriter spriter = new Spriter("Multiplayer");
         spriter.setViewportWidth(15);
         spriter.setViewportHeight(15);
+        spriter.setDebugGC(true);
 
         spriter.setBackgroundColor(Color.BLACK);
         Sprite loading = spriter.createProto(SpriterUtils.loadImageFromResource("/loading.png"), 367 / 2, 62 / 2).newInstance(5);

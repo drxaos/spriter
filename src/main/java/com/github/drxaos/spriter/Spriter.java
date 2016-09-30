@@ -27,6 +27,10 @@ public class Spriter extends JFrame implements Runnable {
     private float targetFps = 1000f / 40;
     private AtomicInteger fpsCounter = new AtomicInteger(0);
 
+    private boolean shouldGC = false;
+    private boolean autoGC = true;
+    private boolean debugGC = true;
+
     private RenderChain renderChain;
     private Renderer renderer;
 
@@ -82,6 +86,20 @@ public class Spriter extends JFrame implements Runnable {
      */
     public void setTargetFps(int targetFps) {
         this.targetFps = 1000f / targetFps;
+    }
+
+    /**
+     * Auto garbage collection every second.
+     */
+    public void setAutoGC(boolean autoGC) {
+        this.autoGC = autoGC;
+    }
+
+    /**
+     * Show collected objects count.
+     */
+    public void setDebugGC(boolean debugGC) {
+        this.debugGC = debugGC;
     }
 
     /**
@@ -263,12 +281,18 @@ public class Spriter extends JFrame implements Runnable {
         synchronized (renderLock) {
             synchronized (sprites) {
                 for (Sprite sprite : sprites) {
-                    if (sprite.isDirty()) {
+                    if (sprite.snapshotGetRemove()) {
+                        // skip
+                    } else if (sprite.isDirty()) {
                         sprite.snapshot();
                     }
                 }
             }
             fpsCounter.incrementAndGet();
+            if (shouldGC) {
+                shouldGC = false;
+                garbageCollect();
+            }
             renderLock.notifyAll();
         }
 
@@ -276,6 +300,42 @@ public class Spriter extends JFrame implements Runnable {
         if (sleep > 0) {
             Thread.sleep(sleep);
         }
+    }
+
+    public int garbageCollect() {
+        int collected = 0;
+        synchronized (sprites) {
+            int marked = 1;
+            while (marked > 0) {
+                marked = 0;
+                for (int currentIndex = sprites.size() - 1; currentIndex >= 0; currentIndex--) {
+                    Sprite current = sprites.get(currentIndex);
+
+                    if (current.isRemoved()) {
+                        Sprite last = sprites.remove(sprites.size() - 1);
+                        for (Sprite sprite : sprites) {
+                            if (sprite.getParentId() == currentIndex) {
+                                sprite.remove();
+                                marked++;
+                            } else if (sprite.getParentId() == last.getIndex()) {
+                                sprite.setParentId(currentIndex);
+                            }
+                        }
+                        if (last != current) {
+                            sprites.set(currentIndex, last);
+                            last.setIndex(currentIndex);
+                        }
+
+                        collected++;
+                    }
+                }
+            }
+            if (debugGC) {
+                System.err.println("Collected: " + collected + " (left: " + sprites.size() + ")");
+            }
+        }
+        System.gc();
+        return collected;
     }
 
     /**
@@ -313,6 +373,7 @@ public class Spriter extends JFrame implements Runnable {
             if (System.currentTimeMillis() - fpsCounterStart > 1000) {
                 fps = fpsCounter.getAndSet(0);
                 fpsCounterStart = System.currentTimeMillis();
+                shouldGC = autoGC;
             }
 
             if (resized.getAndSet(false)) {

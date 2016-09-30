@@ -24,12 +24,13 @@ public class Spriter extends JFrame implements Runnable {
     private long fps = 0;
     private long fpsCounterStart = 0;
     private long currentFrameStart = 0;
-    private float targetFps = 1000f / 40;
+    private int targetFps = 40;
+    private int dynamicSleep = 1000 / targetFps;
     private AtomicInteger fpsCounter = new AtomicInteger(0);
 
     private boolean shouldGC = false;
     private boolean autoGC = true;
-    private boolean debugGC = true;
+    private boolean debugGC = false;
 
     private RenderChain renderChain;
     private Renderer renderer;
@@ -85,7 +86,7 @@ public class Spriter extends JFrame implements Runnable {
      * Set target FPS. Spriter will sleep in endFrame().
      */
     public void setTargetFps(int targetFps) {
-        this.targetFps = 1000f / targetFps;
+        this.targetFps = targetFps;
     }
 
     /**
@@ -279,6 +280,10 @@ public class Spriter extends JFrame implements Runnable {
      */
     public void endFrame() throws InterruptedException {
         synchronized (renderLock) {
+            if (shouldGC) {
+                shouldGC = false;
+                garbageCollect();
+            }
             synchronized (sprites) {
                 for (Sprite sprite : sprites) {
                     if (sprite.snapshotGetRemove()) {
@@ -289,14 +294,10 @@ public class Spriter extends JFrame implements Runnable {
                 }
             }
             fpsCounter.incrementAndGet();
-            if (shouldGC) {
-                shouldGC = false;
-                garbageCollect();
-            }
             renderLock.notifyAll();
         }
 
-        int sleep = (int) (targetFps - (System.currentTimeMillis() - currentFrameStart));
+        int sleep = (int) (dynamicSleep - (System.currentTimeMillis() - currentFrameStart));
         if (sleep > 0) {
             Thread.sleep(sleep);
         }
@@ -372,6 +373,20 @@ public class Spriter extends JFrame implements Runnable {
 
             if (System.currentTimeMillis() - fpsCounterStart > 1000) {
                 fps = fpsCounter.getAndSet(0);
+                if (fps < targetFps && dynamicSleep > 0) {
+                    if (fps > targetFps * 1.2) {
+                        dynamicSleep = 1000 / targetFps;
+                    } else {
+                        dynamicSleep--;
+                    }
+                }
+                if (fps > targetFps && dynamicSleep < 1000) {
+                    if (fps < targetFps * 0.8) {
+                        dynamicSleep = 1000 / targetFps;
+                    } else {
+                        dynamicSleep++;
+                    }
+                }
                 fpsCounterStart = System.currentTimeMillis();
                 shouldGC = autoGC;
             }

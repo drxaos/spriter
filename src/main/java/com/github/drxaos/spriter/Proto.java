@@ -16,9 +16,11 @@ public class Proto {
     private double imgCX, imgCY;
 
     private final transient BufferedImage[][] scaledImg;
+    private transient Scene scene;
 
-    Proto(Spriter spriter, BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
+    Proto(Spriter spriter, Scene scene, BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
         this.spriter = spriter;
+        this.scene = scene;
 
         this.img = image;
         this.imgW = img.getWidth();

@@ -34,11 +34,13 @@ public class Sprite {
     long[] snapshot = new long[16];
 
     private transient Spriter spriter;
+    private transient Scene scene;
 
     private Proto snapshotCachedProto;
 
-    public Sprite(Spriter spriter, Proto proto, double objectWidth, double objectHeight) {
+    public Sprite(Spriter spriter, Scene scene, Proto proto, double objectWidth, double objectHeight) {
         this.spriter = spriter;
+        this.scene = scene;
         setProto(proto);
 
         if (objectHeight < 0) {
@@ -67,6 +69,7 @@ public class Sprite {
 
     public Sprite(Sprite sprite) {
         this.spriter = sprite.spriter;
+        this.scene = sprite.scene;
         System.arraycopy(sprite.active, 0, active, 0, active.length);
         System.arraycopy(sprite.snapshot, 0, snapshot, 0, snapshot.length);
     }
@@ -415,7 +418,7 @@ public class Sprite {
         if (active[PARENT] < 0) {
             return null;
         }
-        return spriter.getSpriteByIndex((int) active[PARENT]);
+        return scene.getSpriteByIndex((int) active[PARENT]);
     }
 
     int getParentId() {
@@ -442,7 +445,7 @@ public class Sprite {
     }
 
     public Proto getProto() {
-        return spriter.getProtoByIndex((int) active[PROTO]);
+        return scene.getProtoByIndex((int) active[PROTO]);
     }
 
     void setProto(Proto proto) {
@@ -524,14 +527,14 @@ public class Sprite {
         if (snapshot[PARENT] < 0) {
             return null;
         }
-        return spriter.getSpriteByIndex((int) snapshot[PARENT]);
+        return scene.getSpriteByIndex((int) snapshot[PARENT]);
     }
 
     Proto snapshotGetProto() {
         if (snapshotCachedProto != null) {
             return snapshotCachedProto;
         }
-        return snapshotCachedProto = spriter.getProtoByIndex((int) snapshot[PROTO]);
+        return snapshotCachedProto = scene.getProtoByIndex((int) snapshot[PROTO]);
     }
 
     RenderedImage snapshotGetFrame() {

@@ -75,7 +75,7 @@ public class Multiplayer {
         }
 
         @Override
-        public Image render(Image img, Graphics2D g, int width, int height) {
+        public Image render(Scene scene, Image img, Graphics2D g, int width, int height) {
             int w = width / 2 - 10;
             int h = height - 10;
 
@@ -85,18 +85,17 @@ public class Multiplayer {
             }
             if (right == null || right.getWidth(null) != w || right.getHeight(null) != h) {
                 right = spriter.makeOutputImage(w, h, true);
-                right.setAccelerationPriority(1);
                 graphicsRight = (Graphics2D) right.getGraphics();
             }
 
             Future<Image> leftFuture = executor.submit(() -> {
                 rendererLeft.setViewportShift(player2_x, player2_y);
-                return rendererLeft.chain(this.left, graphicsLeft, w, h);
+                return rendererLeft.chain(scene, this.left, graphicsLeft, w, h);
             });
 
             Future<Image> rightFuture = executor.submit(() -> {
                 rendererRight.setViewportShift(player1_x, player1_y);
-                return rendererRight.chain(this.right, graphicsRight, w, h);
+                return rendererRight.chain(scene, this.right, graphicsRight, w, h);
             });
 
             g.setColor(Color.BLACK);
@@ -123,7 +122,7 @@ public class Multiplayer {
         }
 
         @Override
-        public void render(Graphics2D g, int width, int height) {
+        public void render(Scene scene, Graphics2D g, int width, int height) {
             // none
         }
     }

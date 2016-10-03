@@ -1,19 +1,17 @@
 package com.github.drxaos.spriter;
 
+import com.github.drxaos.spriter.swing.SpriterJFrameOutput;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Spriter implements Runnable {
 
     private SpriterJFrameOutput output;
 
     private AtomicBoolean shutdown = new AtomicBoolean(false);
-
-    private Graphics2D graphics;
     private final Object renderLock = new Object();
 
     private long fps = 0;
@@ -23,20 +21,11 @@ public class Spriter implements Runnable {
     private int dynamicSleep = 1000 / targetFps;
     private AtomicInteger fpsCounter = new AtomicInteger(0);
 
-    private boolean shouldGC = false;
-    private boolean autoGC = true;
-    private boolean debugGC = false;
-
     private RenderChain renderChain;
     private Renderer renderer;
 
-    private GraphicsConfiguration config;
-
-    final ArrayList<Proto> protos = new ArrayList<>();
-    final ArrayList<Sprite> sprites = new ArrayList<>();
-
-    AtomicReference<Color> bgColor = new AtomicReference<>(Color.WHITE);
-    AtomicReference<Color> borderColor = new AtomicReference<>(Color.BLACK);
+    private Scene scene;
+    private GarbageCollector gc;
 
     /**
      * Get control instance for this Spriter window.
@@ -76,14 +65,14 @@ public class Spriter implements Runnable {
      * Auto garbage collection every second.
      */
     public void setAutoGC(boolean autoGC) {
-        this.autoGC = autoGC;
+        gc.setAutoGC(autoGC);
     }
 
     /**
      * Show collected objects count.
      */
     public void setDebugGC(boolean debugGC) {
-        this.debugGC = debugGC;
+        gc.setDebugGC(debugGC);
     }
 
     /**
@@ -92,8 +81,10 @@ public class Spriter implements Runnable {
      * @param title Title of window
      */
     public Spriter(String title) {
-        output = new SpriterJFrameOutput(title);
-        output.setSpriter(this);
+        output = new SpriterJFrameOutput(title, this);
+
+        scene = new Scene();
+        gc = new GarbageCollector();
 
         renderChain = renderer = new Renderer(this);
         currentFrameStart = System.currentTimeMillis();
@@ -105,7 +96,9 @@ public class Spriter implements Runnable {
 
     public Spriter(SpriterJFrameOutput output) {
         this.output = output;
-        output.setSpriter(this);
+
+        scene = new Scene();
+        gc = new GarbageCollector();
 
         renderChain = renderer = new Renderer(this);
         currentFrameStart = System.currentTimeMillis();
@@ -113,14 +106,6 @@ public class Spriter implements Runnable {
         Thread thread = new Thread(this);
         thread.setName("Spriter rendering loop");
         thread.start();
-    }
-
-    public Sprite getSpriteByIndex(int index) {
-        return sprites.get(index);
-    }
-
-    public Proto getProtoByIndex(int index) {
-        return protos.get(index);
     }
 
     /**
@@ -135,19 +120,8 @@ public class Spriter implements Runnable {
      */
     public void endFrame() throws InterruptedException {
         synchronized (renderLock) {
-            if (shouldGC) {
-                shouldGC = false;
-                garbageCollect();
-            }
-            synchronized (sprites) {
-                for (Sprite sprite : sprites) {
-                    if (sprite.snapshotGetRemove()) {
-                        // skip
-                    } else if (sprite.isDirty()) {
-                        sprite.snapshot();
-                    }
-                }
-            }
+            gc.endFrame(scene);
+            scene.snapshot();
             fpsCounter.incrementAndGet();
             renderLock.notifyAll();
         }
@@ -158,41 +132,6 @@ public class Spriter implements Runnable {
         }
     }
 
-    public int garbageCollect() {
-        int collected = 0;
-        synchronized (sprites) {
-            int marked = 1;
-            while (marked > 0) {
-                marked = 0;
-                for (int currentIndex = sprites.size() - 1; currentIndex >= 0; currentIndex--) {
-                    Sprite current = sprites.get(currentIndex);
-
-                    if (current.isRemoved()) {
-                        Sprite last = sprites.remove(sprites.size() - 1);
-                        for (Sprite sprite : sprites) {
-                            if (sprite.getParentId() == currentIndex) {
-                                sprite.remove();
-                                marked++;
-                            } else if (sprite.getParentId() == last.getIndex()) {
-                                sprite.setParentId(currentIndex);
-                            }
-                        }
-                        if (last != current) {
-                            sprites.set(currentIndex, last);
-                            last.setIndex(currentIndex);
-                        }
-
-                        collected++;
-                    }
-                }
-            }
-            if (debugGC) {
-                System.err.println("Collected: " + collected + " (left: " + sprites.size() + ")");
-            }
-        }
-        System.gc();
-        return collected;
-    }
 
     /**
      * Set new head of painters chain.
@@ -225,25 +164,7 @@ public class Spriter implements Runnable {
                 break;
             }
 
-            if (System.currentTimeMillis() - fpsCounterStart > 1000) {
-                fps = fpsCounter.getAndSet(0);
-                if (fps < targetFps && dynamicSleep > 0) {
-                    if (fps > targetFps * 1.2) {
-                        dynamicSleep = 1000 / targetFps;
-                    } else {
-                        dynamicSleep--;
-                    }
-                }
-                if (fps > targetFps && dynamicSleep < 1000) {
-                    if (fps < targetFps * 0.8) {
-                        dynamicSleep = 1000 / targetFps;
-                    } else {
-                        dynamicSleep++;
-                    }
-                }
-                fpsCounterStart = System.currentTimeMillis();
-                shouldGC = autoGC;
-            }
+            calculateFps();
 
             Image background = output.getCanvasImage();
             Graphics2D backgroundGraphics = output.getCanvasGraphics();
@@ -251,7 +172,7 @@ public class Spriter implements Runnable {
             do {
                 long currentFrame = fpsCounter.get();
 
-                renderChain.chain(background, backgroundGraphics, background.getWidth(null), background.getHeight(null));
+                renderChain.chain(scene, background, backgroundGraphics, background.getWidth(null), background.getHeight(null));
 
                 output.setCanvasImage(background);
 
@@ -266,6 +187,28 @@ public class Spriter implements Runnable {
                 }
             } while (!output.updateScreen());
 
+        }
+    }
+
+    private void calculateFps() {
+        if (System.currentTimeMillis() - fpsCounterStart > 1000) {
+            fps = fpsCounter.getAndSet(0);
+            if (fps < targetFps && dynamicSleep > 0) {
+                if (fps > targetFps * 1.2) {
+                    dynamicSleep = 1000 / targetFps;
+                } else {
+                    dynamicSleep--;
+                }
+            }
+            if (fps > targetFps && dynamicSleep < 1000) {
+                if (fps < targetFps * 0.8) {
+                    dynamicSleep = 1000 / targetFps;
+                } else {
+                    dynamicSleep++;
+                }
+            }
+            fpsCounterStart = System.currentTimeMillis();
+            gc.triggerAuto();
         }
     }
 
@@ -286,15 +229,11 @@ public class Spriter implements Runnable {
     }
 
     public void setBackgroundColor(Color color) {
-        if (color != null) {
-            bgColor.set(color);
-        }
+        scene.setBackgroundColor(color);
     }
 
     public void setBorderColor(Color color) {
-        if (color != null) {
-            borderColor.set(color);
-        }
+        scene.setBorderColor(color);
     }
 
     /**
@@ -372,11 +311,8 @@ public class Spriter implements Runnable {
      * @return new sprite prototype
      */
     public Proto createProto(BufferedImage image, double imageCenterX, double imageCenterY) {
-        Proto proto = new Proto(this, image, imageCenterX, imageCenterY, -1, -1);
-        synchronized (protos) {
-            proto.setIndex(protos.size());
-            protos.add(proto);
-        }
+        Proto proto = new Proto(this, scene, image, imageCenterX, imageCenterY, -1, -1);
+        scene.addProto(proto);
         return proto;
     }
 
@@ -391,11 +327,8 @@ public class Spriter implements Runnable {
      * @return new sprite prototype
      */
     public Proto createProto(BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
-        Proto proto = new Proto(this, image, imageCenterX, imageCenterY, frameWidth, frameHeight);
-        synchronized (protos) {
-            proto.setIndex(protos.size());
-            protos.add(proto);
-        }
+        Proto proto = new Proto(this, scene, image, imageCenterX, imageCenterY, frameWidth, frameHeight);
+        scene.addProto(proto);
         return proto;
     }
 
@@ -408,11 +341,8 @@ public class Spriter implements Runnable {
      * @return new sprite
      */
     public Sprite createSprite(Proto proto, double objectWidth, double objectHeight) {
-        Sprite sprite = new Sprite(this, proto, objectWidth, objectHeight);
-        synchronized (sprites) {
-            sprite.setIndex(sprites.size());
-            sprites.add(sprite);
-        }
+        Sprite sprite = new Sprite(this, scene, proto, objectWidth, objectHeight);
+        scene.addSprite(sprite);
         return sprite;
     }
 
@@ -426,19 +356,14 @@ public class Spriter implements Runnable {
      * @return new sprite
      */
     public Sprite createSprite(Proto proto, double objectWidth) {
-        Sprite sprite = new Sprite(this, proto, objectWidth, -1d);
-        synchronized (sprites) {
-            sprite.setIndex(sprites.size());
-            sprites.add(sprite);
-        }
+        Sprite sprite = new Sprite(this, scene, proto, objectWidth, -1d);
+        scene.addSprite(sprite);
         return sprite;
     }
 
     Sprite copySprite(Sprite sprite) {
         Sprite inst = new Sprite(sprite);
-        synchronized (sprites) {
-            sprites.add(inst);
-        }
+        scene.addSprite(inst);
         return inst;
 
     }
@@ -448,6 +373,10 @@ public class Spriter implements Runnable {
     }
 
     public void shutdown() {
-        this.shutdown.set(true);
+        shutdown.set(true);
+    }
+
+    public void gc() {
+        gc.garbageCollect(scene);
     }
 }

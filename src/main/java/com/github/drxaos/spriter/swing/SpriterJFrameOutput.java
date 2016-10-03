@@ -1,4 +1,6 @@
-package com.github.drxaos.spriter;
+package com.github.drxaos.spriter.swing;
+
+import com.github.drxaos.spriter.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -58,8 +60,9 @@ public class SpriterJFrameOutput extends JFrame {
      *
      * @param title Title of window
      */
-    public SpriterJFrameOutput(String title) {
+    public SpriterJFrameOutput(String title, Spriter spriter) {
         super(title);
+        this.spriter = spriter;
 
         addWindowListener(new FrameClose());
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -116,7 +119,7 @@ public class SpriterJFrameOutput extends JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                Point wp = spriter.screenToWorld(e.getX(), e.getY());
+                com.github.drxaos.spriter.Point wp = spriter.screenToWorld(e.getX(), e.getY());
                 control.c.set(new Click(wp, e.getButton()));
             }
         });
@@ -153,7 +156,7 @@ public class SpriterJFrameOutput extends JFrame {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                Point wp = spriter.screenToWorld(e.getX(), e.getY());
+                com.github.drxaos.spriter.Point wp = spriter.screenToWorld(e.getX(), e.getY());
                 control.mx.set(wp.getX());
                 control.my.set(wp.getY());
             }
@@ -237,10 +240,6 @@ public class SpriterJFrameOutput extends JFrame {
         } catch (IllegalStateException e) {
             return true;
         }
-    }
-
-    public void setSpriter(Spriter spriter) {
-        this.spriter = spriter;
     }
 
     public Image makeOutputImage(final int width, final int height, final boolean alpha) {

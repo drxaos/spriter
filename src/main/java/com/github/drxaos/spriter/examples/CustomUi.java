@@ -2,6 +2,7 @@ package com.github.drxaos.spriter.examples;
 
 import com.github.drxaos.spriter.*;
 import com.github.drxaos.spriter.Point;
+import com.github.drxaos.spriter.swing.SpriterJFrameOutput;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;

@@ -12,8 +12,8 @@ abstract public class RenderChain {
         this.next = next;
     }
 
-    public Image chain(Image img, Graphics2D g, int width, int height) {
-        Image render = render(img, g, width, height);
+    public Image chain(Scene scene, Image img, Graphics2D g, int width, int height) {
+        Image render = render(scene, img, g, width, height);
         if (next == null) {
             return render;
         }
@@ -22,13 +22,13 @@ abstract public class RenderChain {
             width = render.getWidth(null);
             height = render.getHeight(null);
         }
-        return next.chain(render, g, width, height);
+        return next.chain(scene, render, g, width, height);
     }
 
-    public Image render(Image img, Graphics2D g, int width, int height) {
-        render(g, width, height);
+    public Image render(Scene scene, Image img, Graphics2D g, int width, int height) {
+        render(scene, g, width, height);
         return img;
     }
 
-    abstract public void render(Graphics2D g, int width, int height);
+    abstract public void render(Scene scene, Graphics2D g, int width, int height);
 }

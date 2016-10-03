@@ -163,7 +163,7 @@ public class Renderer extends RenderChain {
         this.debug.set(debug);
     }
 
-    public void render(Graphics2D g, int width, int height) {
+    public void render(Scene scene, Graphics2D g, int width, int height) {
         if (System.currentTimeMillis() - rpsCounterStart > 1000) {
             rps = rpsCounter.getAndSet(0);
             rpsCounterStart = System.currentTimeMillis();
@@ -171,11 +171,11 @@ public class Renderer extends RenderChain {
 
         rpsCounter.incrementAndGet();
 
-        g.setColor(spriter.bgColor.get());
-        g.setBackground(spriter.bgColor.get());
+        g.setColor(scene.bgColor.get());
+        g.setBackground(scene.bgColor.get());
         g.fillRect(0, 0, width, height);
 
-        fillLayers();
+        fillLayers(scene);
 
         double vpWidth = viewportWidth.get();
         double vpHeight = viewportHeight.get();
@@ -253,7 +253,7 @@ public class Renderer extends RenderChain {
             }
         }
 
-        drawBorders(g, width, height, vpWidth, vpHeight, size);
+        drawBorders(scene, g, width, height, vpWidth, vpHeight, size);
         drawDebug(g, drawCounter);
     }
 
@@ -274,9 +274,9 @@ public class Renderer extends RenderChain {
         }
     }
 
-    private void drawBorders(Graphics2D g, int width, int height, double vpWidth, double vpHeight, double size) {
+    private void drawBorders(Scene scene, Graphics2D g, int width, int height, double vpWidth, double vpHeight, double size) {
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1));
-        Color color = spriter.borderColor.get();
+        Color color = scene.borderColor.get();
         g.setColor(color);
         g.setBackground(color);
         double brdx = 0.5d * width - 0.5d * vpWidth * size;
@@ -307,15 +307,15 @@ public class Renderer extends RenderChain {
         g.drawRenderedImage(sprite.snapshotGetFrame(), trans);
     }
 
-    private void fillLayers() {
+    private void fillLayers(Scene scene) {
         // clear layers
         for (ArrayList<Sprite> list : layers.values()) {
             list.clear();
         }
 
         // fill layers
-        synchronized (spriter.sprites) {
-            for (Iterator<Sprite> iterator = spriter.sprites.iterator(); iterator.hasNext(); ) {
+        synchronized (scene.sprites) {
+            for (Iterator<Sprite> iterator = scene.sprites.iterator(); iterator.hasNext(); ) {
                 Sprite sprite = iterator.next();
                 if (sprite.snapshotGetRemove()) {
                     // TODO garbage collection

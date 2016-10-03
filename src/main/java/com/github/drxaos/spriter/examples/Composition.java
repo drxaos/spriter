@@ -202,7 +202,7 @@ public class Composition {
             gc--;
             if (gc < 0) {
                 gc = 200;
-                spriter.garbageCollect();
+                spriter.gc();
             }
 
             spriter.endFrame();

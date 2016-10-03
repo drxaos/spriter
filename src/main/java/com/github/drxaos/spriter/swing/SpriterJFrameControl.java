@@ -1,4 +1,8 @@
-package com.github.drxaos.spriter;
+package com.github.drxaos.spriter.swing;
+
+import com.github.drxaos.spriter.Click;
+import com.github.drxaos.spriter.Control;
+import com.github.drxaos.spriter.Point;
 
 import java.util.HashMap;
 import java.util.Map;

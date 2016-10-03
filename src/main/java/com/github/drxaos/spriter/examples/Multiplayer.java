@@ -5,7 +5,6 @@ import com.github.drxaos.spriter.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.awt.image.VolatileImage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,7 +64,7 @@ public class Multiplayer {
 
         Spriter spriter;
         Renderer rendererLeft, rendererRight;
-        VolatileImage left, right;
+        Image left, right;
         Graphics2D graphicsLeft, graphicsRight;
         ExecutorService executor = Executors.newFixedThreadPool(1);
 
@@ -80,14 +79,14 @@ public class Multiplayer {
             int w = width / 2 - 10;
             int h = height - 10;
 
-            if (left == null || left.getWidth() != w || left.getHeight() != h) {
-                left = spriter.makeVolatileImage(w, h, true);
-                graphicsLeft = left.createGraphics();
+            if (left == null || left.getWidth(null) != w || left.getHeight(null) != h) {
+                left = spriter.makeOutputImage(w, h, true);
+                graphicsLeft = (Graphics2D) left.getGraphics();
             }
-            if (right == null || right.getWidth() != w || right.getHeight() != h) {
-                right = spriter.makeVolatileImage(w, h, true);
+            if (right == null || right.getWidth(null) != w || right.getHeight(null) != h) {
+                right = spriter.makeOutputImage(w, h, true);
                 right.setAccelerationPriority(1);
-                graphicsRight = right.createGraphics();
+                graphicsRight = (Graphics2D) right.getGraphics();
             }
 
             Future<Image> leftFuture = executor.submit(() -> {

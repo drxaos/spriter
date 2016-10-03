@@ -1,23 +1,18 @@
 package com.github.drxaos.spriter;
 
-import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
-import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
-import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class Spriter extends JFrame implements Runnable {
+public class Spriter implements Runnable {
 
-    private boolean shutdown = false;
+    private SpriterJFrameOutput output;
 
-    private Canvas canvas;
-    private BufferStrategy strategy;
-    private VolatileImage background;
+    private AtomicBoolean shutdown = new AtomicBoolean(false);
+
     private Graphics2D graphics;
     private final Object renderLock = new Object();
 
@@ -37,34 +32,22 @@ public class Spriter extends JFrame implements Runnable {
 
     private GraphicsConfiguration config;
 
-    private Control control;
-
     final ArrayList<Proto> protos = new ArrayList<>();
     final ArrayList<Sprite> sprites = new ArrayList<>();
 
-    private AtomicBoolean resized = new AtomicBoolean(false);
-
     AtomicReference<Color> bgColor = new AtomicReference<>(Color.WHITE);
     AtomicReference<Color> borderColor = new AtomicReference<>(Color.BLACK);
-    private Cursor defaultCursor, blankCursor;
-
-    static {
-        System.setProperty("sun.awt.noerasebackground", "true");
-    }
 
     /**
      * Get control instance for this Spriter window.
      */
     public synchronized Control getControl() {
-        return control;
+        return output.getControl();
     }
 
-    public VolatileImage makeVolatileImage(final int width, final int height, final boolean alpha) {
-        VolatileImage compatibleImage = config.createCompatibleVolatileImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
-        compatibleImage.setAccelerationPriority(1);
-        return compatibleImage;
+    public Image makeOutputImage(final int width, final int height, final boolean alpha) {
+        return output.makeOutputImage(width, height, alpha);
     }
-
 
     /**
      * Show default system cursor inside canvas.
@@ -72,7 +55,7 @@ public class Spriter extends JFrame implements Runnable {
      * Default is false.
      */
     public void setShowCursor(boolean show) {
-        canvas.setCursor(show ? defaultCursor : blankCursor);
+        output.setShowCursor(show);
     }
 
     /**
@@ -109,117 +92,23 @@ public class Spriter extends JFrame implements Runnable {
      * @param title Title of window
      */
     public Spriter(String title) {
-        super(title);
-
-        addWindowListener(new FrameClose());
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setSize(800, 800);
-        setLayout(new BorderLayout());
-        setIgnoreRepaint(true);
+        output = new SpriterJFrameOutput(title);
+        output.setSpriter(this);
 
         renderChain = renderer = new Renderer(this);
+        currentFrameStart = System.currentTimeMillis();
 
-        config = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+        Thread thread = new Thread(this);
+        thread.setName("Spriter rendering loop");
+        thread.start();
+    }
 
-        control = new Control();
+    public Spriter(SpriterJFrameOutput output) {
+        this.output = output;
+        output.setSpriter(this);
 
-        // Canvas
-        canvas = new Canvas(config);
-        canvas.setIgnoreRepaint(true);
-        add(canvas, BorderLayout.CENTER);
-
-        BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        defaultCursor = canvas.getCursor();
-        blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new java.awt.Point(0, 0), "blank cursor");
-        canvas.setCursor(blankCursor);
-
-        addComponentListener(new ComponentAdapter() {
-            public void componentResized(ComponentEvent e) {
-                resized.set(true);
-            }
-        });
-
-        canvas.addComponentListener(new ComponentAdapter() {
-            public void componentResized(ComponentEvent e) {
-                resized.set(true);
-            }
-        });
-
-        canvas.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                AtomicBoolean b = control.buttons.get(e.getButton());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.buttons.put(e.getButton(), b);
-                }
-                b.set(true);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                AtomicBoolean b = control.buttons.get(e.getButton());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.buttons.put(e.getButton(), b);
-                }
-                b.set(false);
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                Point wp = screenToWorld(e.getX(), e.getY());
-                control.c.set(new Click(wp, e.getButton()));
-            }
-        });
-        setFocusTraversalKeysEnabled(false);
-        canvas.setFocusTraversalKeysEnabled(false);
-        canvas.setFocusable(false);
-        addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                AtomicBoolean b = control.keys.get(e.getKeyCode());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.keys.put(e.getKeyCode(), b);
-                }
-                b.set(true);
-                control.k.set(e.getKeyCode());
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                AtomicBoolean b = control.keys.get(e.getKeyCode());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.keys.put(e.getKeyCode(), b);
-                }
-                b.set(false);
-            }
-        });
-        canvas.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                mouseMoved(e);
-            }
-
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                Point wp = screenToWorld(e.getX(), e.getY());
-                control.mx.set(wp.getX());
-                control.my.set(wp.getY());
-            }
-        });
-
-        setVisible(true);
-
-        // Background & Buffer
-        background = makeVolatileImage(canvas.getWidth(), canvas.getHeight(), true);
-        canvas.createBufferStrategy(2);
-        do {
-            strategy = canvas.getBufferStrategy();
-        }
-        while (strategy == null);
+        renderChain = renderer = new Renderer(this);
+        currentFrameStart = System.currentTimeMillis();
 
         Thread thread = new Thread(this);
         thread.setName("Spriter rendering loop");
@@ -232,40 +121,6 @@ public class Spriter extends JFrame implements Runnable {
 
     public Proto getProtoByIndex(int index) {
         return protos.get(index);
-    }
-
-    private class FrameClose extends WindowAdapter {
-        @Override
-        public void windowClosing(final WindowEvent e) {
-            shutdown = true;
-        }
-    }
-
-    private Graphics2D getBuffer() {
-        if (graphics == null) {
-            try {
-                graphics = (Graphics2D) strategy.getDrawGraphics();
-            } catch (IllegalStateException e) {
-                return null;
-            }
-        }
-        return graphics;
-    }
-
-    private boolean updateScreen() {
-        graphics.dispose();
-        graphics = null;
-        try {
-            strategy.show();
-            Toolkit.getDefaultToolkit().sync();
-            return (!strategy.contentsLost());
-
-        } catch (NullPointerException e) {
-            return true;
-
-        } catch (IllegalStateException e) {
-            return true;
-        }
     }
 
     /**
@@ -365,9 +220,8 @@ public class Spriter extends JFrame implements Runnable {
     }
 
     public void run() {
-        Graphics2D backgroundGraphics = (Graphics2D) background.getGraphics();
         while (true) {
-            if (shutdown) {
+            if (shutdown.get()) {
                 break;
             }
 
@@ -391,22 +245,15 @@ public class Spriter extends JFrame implements Runnable {
                 shouldGC = autoGC;
             }
 
-            if (resized.getAndSet(false)) {
-                background = makeVolatileImage(canvas.getWidth(), canvas.getHeight(), true);
-                backgroundGraphics = (Graphics2D) background.getGraphics();
-            }
+            Image background = output.getCanvasImage();
+            Graphics2D backgroundGraphics = output.getCanvasGraphics();
 
             do {
-                Graphics2D bg = getBuffer();
-                if (bg == null) {
-                    continue;
-                }
-
                 long currentFrame = fpsCounter.get();
 
-                renderChain.chain(background, backgroundGraphics, background.getWidth(), background.getHeight());
-                bg.drawImage(background, 0, 0, null);
-                bg.dispose();
+                renderChain.chain(background, backgroundGraphics, background.getWidth(null), background.getHeight(null));
+
+                output.setCanvasImage(background);
 
                 try {
                     synchronized (renderLock) {
@@ -417,17 +264,17 @@ public class Spriter extends JFrame implements Runnable {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            } while (!updateScreen());
+            } while (!output.updateScreen());
 
         }
     }
 
     public Point screenToWorld(int screenX, int screenY) {
-        return renderer.screenToWorld(screenX, screenY, canvas.getWidth(), canvas.getHeight());
+        return renderer.screenToWorld(screenX, screenY, output.getCanvasWidth(), output.getCanvasHeight());
     }
 
     public Point worldToScreen(int worldX, int worldY) {
-        return renderer.worldToScreen(worldX, worldY, canvas.getWidth(), canvas.getHeight());
+        return renderer.worldToScreen(worldX, worldY, output.getCanvasWidth(), output.getCanvasHeight());
     }
 
     public Point screenToWorld(int screenX, int screenY, int canvasWidth, int canvasHeight) {
@@ -598,5 +445,9 @@ public class Spriter extends JFrame implements Runnable {
 
     public long getFps() {
         return fps;
+    }
+
+    public void shutdown() {
+        this.shutdown.set(true);
     }
 }

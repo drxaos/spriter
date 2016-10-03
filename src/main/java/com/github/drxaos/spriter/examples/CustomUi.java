@@ -106,13 +106,14 @@ public class CustomUi {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Custom UI");
-        spriter.setMinimumSize(new Dimension(400, 400));
+        SpriterJFrameOutput window = new SpriterJFrameOutput("Custom UI");
+        Spriter spriter = new Spriter(window);
+        window.setMinimumSize(new Dimension(400, 400));
         spriter.setDebug(true);
         spriter.setDebugGC(true);
 
         StatusBar statusBar = new StatusBar();
-        spriter.getContentPane().add(statusBar, BorderLayout.SOUTH);
+        window.getContentPane().add(statusBar, BorderLayout.SOUTH);
 
         AtomicBoolean add = new AtomicBoolean(false);
         AtomicBoolean add10 = new AtomicBoolean(false);
@@ -150,7 +151,7 @@ public class CustomUi {
                             BorderFactory.createEmptyBorder(10, 10, 10, 10)
                     )
             );
-            spriter.getContentPane().add(outerPanel, BorderLayout.EAST);
+            window.getContentPane().add(outerPanel, BorderLayout.EAST);
 
             JPanel panel = new JPanel(new GridLayout(0, 1, 10, 10));
             panel.add(jb1);

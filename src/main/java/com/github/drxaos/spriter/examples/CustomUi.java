@@ -2,7 +2,7 @@ package com.github.drxaos.spriter.examples;
 
 import com.github.drxaos.spriter.*;
 import com.github.drxaos.spriter.Point;
-import com.github.drxaos.spriter.swing.SpriterJFrameOutput;
+import com.github.drxaos.spriter.Output;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -107,7 +107,7 @@ public class CustomUi {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        SpriterJFrameOutput window = new SpriterJFrameOutput("Custom UI");
+        Output window = new Output("Custom UI");
         Spriter spriter = new Spriter(window);
         window.setMinimumSize(new Dimension(400, 400));
         spriter.setDebug(true);

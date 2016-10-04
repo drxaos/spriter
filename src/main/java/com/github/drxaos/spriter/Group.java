@@ -3,11 +3,11 @@ package com.github.drxaos.spriter;
 import java.util.LinkedHashSet;
 import java.util.function.Consumer;
 
-public class SpriteGroup {
+public class Group {
 
     private final LinkedHashSet<Sprite> elements = new LinkedHashSet<>();
 
-    public SpriteGroup(Sprite... elements) {
+    public Group(Sprite... elements) {
         for (Sprite sprite : elements) {
             this.elements.add(sprite);
         }
@@ -27,7 +27,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 0.0, 0.0
      */
-    public SpriteGroup setPos(double x, double y) {
+    public Group setPos(double x, double y) {
         setX(x);
         setY(y);
         return this;
@@ -38,7 +38,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 0.0, 0.0
      */
-    public SpriteGroup setPos(Point point) {
+    public Group setPos(Point point) {
         setX(point.getX());
         setY(point.getY());
         return this;
@@ -49,7 +49,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 0.0
      */
-    public SpriteGroup setAngle(double a) {
+    public Group setAngle(double a) {
         eachSprite((s) -> s.setAngle(a));
         return this;
     }
@@ -57,7 +57,7 @@ public class SpriteGroup {
     /**
      * Set new width and proportional height to sprite.
      */
-    public SpriteGroup setWidthProportional(double w) {
+    public Group setWidthProportional(double w) {
         eachSprite((s) -> s.setWidthProportional(w));
         return this;
     }
@@ -65,7 +65,7 @@ public class SpriteGroup {
     /**
      * Set new height and proportional width to sprite.
      */
-    public SpriteGroup setHeightProportional(double h) {
+    public Group setHeightProportional(double h) {
         eachSprite((s) -> s.setHeightProportional(h));
         return this;
     }
@@ -73,7 +73,7 @@ public class SpriteGroup {
     /**
      * Set new width of sprite.
      */
-    public SpriteGroup setWidth(double w) {
+    public Group setWidth(double w) {
         eachSprite((s) -> s.setWidth(w));
         return this;
     }
@@ -81,7 +81,7 @@ public class SpriteGroup {
     /**
      * Set new height of sprite.
      */
-    public SpriteGroup setHeight(double h) {
+    public Group setHeight(double h) {
         eachSprite((s) -> s.setHeight(h));
         return this;
     }
@@ -89,7 +89,7 @@ public class SpriteGroup {
     /**
      * Set new width and height of sprite.
      */
-    public SpriteGroup setSquareSide(double wh) {
+    public Group setSquareSide(double wh) {
         setWidth(wh);
         setHeight(wh);
         return this;
@@ -98,7 +98,7 @@ public class SpriteGroup {
     /**
      * Set current frame of animated sprite.
      */
-    public SpriteGroup setFrame(int n) {
+    public Group setFrame(int n) {
         eachSprite((s) -> s.setFrame(n));
         return this;
     }
@@ -106,7 +106,7 @@ public class SpriteGroup {
     /**
      * Set current frame of animated sprite.
      */
-    public SpriteGroup setFrame(int n, int row) {
+    public Group setFrame(int n, int row) {
         setFrame(n);
         setFrameRow(row);
         return this;
@@ -115,7 +115,7 @@ public class SpriteGroup {
     /**
      * Set current frame row of animated sprite.
      */
-    public SpriteGroup setFrameRow(int row) {
+    public Group setFrameRow(int row) {
         eachSprite((s) -> s.setFrameRow(row));
         return this;
     }
@@ -133,7 +133,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 0.0
      */
-    public SpriteGroup setX(double x) {
+    public Group setX(double x) {
         eachSprite((s) -> s.setX(x));
         return this;
     }
@@ -143,7 +143,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 0.0
      */
-    public SpriteGroup setY(double y) {
+    public Group setY(double y) {
         eachSprite((s) -> s.setY(y));
         return this;
     }
@@ -153,7 +153,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 0
      */
-    public SpriteGroup setZ(double z) {
+    public Group setZ(double z) {
         eachSprite((s) -> s.setZ(z));
         return this;
     }
@@ -163,7 +163,7 @@ public class SpriteGroup {
      * <br/>
      * Default is true
      */
-    public SpriteGroup setVisible(boolean visible) {
+    public Group setVisible(boolean visible) {
         eachSprite((s) -> s.setVisible(visible));
         return this;
     }
@@ -171,7 +171,7 @@ public class SpriteGroup {
     /**
      * Make sprite to move with viewport.
      */
-    public SpriteGroup setHud(boolean hud) {
+    public Group setHud(boolean hud) {
         eachSprite((s) -> s.setHud(hud));
         return this;
     }
@@ -181,7 +181,7 @@ public class SpriteGroup {
      * <br/>
      * Default is false
      */
-    public SpriteGroup setFlipX(boolean flipx) {
+    public Group setFlipX(boolean flipx) {
         eachSprite((s) -> s.setFlipX(flipx));
         return this;
     }
@@ -191,7 +191,7 @@ public class SpriteGroup {
      * <br/>
      * Default is false
      */
-    public SpriteGroup setFlipY(boolean flipy) {
+    public Group setFlipY(boolean flipy) {
         eachSprite((s) -> s.setFlipY(flipy));
         return this;
     }
@@ -201,7 +201,7 @@ public class SpriteGroup {
      * <br/>
      * Default is 1
      */
-    public SpriteGroup setAlpha(double alpha) {
+    public Group setAlpha(double alpha) {
         eachSprite((s) -> s.setAlpha(alpha));
         return this;
     }
@@ -210,7 +210,7 @@ public class SpriteGroup {
      * Set parent for this sprite.
      * Parent adds to this sprite it's coordinates and angle.
      */
-    public SpriteGroup setParent(Sprite parent) {
+    public Group setParent(Sprite parent) {
         eachSprite((s) -> s.setParent(parent));
         return this;
     }

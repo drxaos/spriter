@@ -6,13 +6,13 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
 
-public class SpriterUtils {
+public class Utils {
 
     /**
      * "/img.png" -> "resources/img.png"
      */
     public static BufferedImage loadImageFromResource(String name) throws IOException {
-        BufferedImage image = ImageIO.read(SpriterUtils.class.getResource(name));
+        BufferedImage image = ImageIO.read(Utils.class.getResource(name));
         BufferedImage convertedImage;
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         GraphicsDevice gd = ge.getDefaultScreenDevice();

@@ -7,105 +7,28 @@ import java.util.Iterator;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Scene renderer
  */
-public class Renderer extends RenderChain {
+public class Renderer {
 
-    private Spriter spriter;
+    Image background;
+    Graphics2D backgroundGraphics;
+
     private int rps;
     private long rpsCounterStart = 0;
     private AtomicInteger rpsCounter = new AtomicInteger(0);
 
-    private AtomicReference<Double>
-            viewportWidth = new AtomicReference<>(2d),
-            viewportHeight = new AtomicReference<>(2d),
-            viewportShiftX = new AtomicReference<>(0d),
-            viewportShiftY = new AtomicReference<>(0d),
-            viewportShiftA = new AtomicReference<>(0d);
-
     private AtomicBoolean bilinearInterpolation = new AtomicBoolean(true);
     private AtomicBoolean antialiasing = new AtomicBoolean(true);
-
-    Renderer(Spriter spriter) {
-        this.spriter = spriter;
-    }
-
-    Renderer(Renderer proto) {
-        this.spriter = proto.spriter;
-        this.bilinearInterpolation = new AtomicBoolean(proto.bilinearInterpolation.get());
-        this.antialiasing = new AtomicBoolean(proto.antialiasing.get());
-        this.debug = new AtomicBoolean(proto.debug.get());
-        this.viewportWidth = new AtomicReference<>(proto.viewportWidth.get());
-        this.viewportHeight = new AtomicReference<>(proto.viewportHeight.get());
-        this.viewportShiftX = new AtomicReference<>(proto.viewportShiftX.get());
-        this.viewportShiftY = new AtomicReference<>(proto.viewportShiftY.get());
-        this.viewportShiftA = new AtomicReference<>(proto.viewportShiftA.get());
-    }
 
     private AtomicBoolean debug = new AtomicBoolean(false);
 
     private TreeMap<Double, ArrayList<Sprite>> layers = new TreeMap<>();
 
 
-    /**
-     * Set new viewport width.
-     * <br/>
-     * Default is 2.0
-     */
-    public void setViewportWidth(double viewportWidth) {
-        this.viewportWidth.set(viewportWidth);
-    }
-
-    /**
-     * Set new viewport height.
-     * <br/>
-     * Default is 2.0
-     */
-    public void setViewportHeight(double viewportHeight) {
-        this.viewportHeight.set(viewportHeight);
-    }
-
-    /**
-     * Shift viewport along X axis.
-     * <br/>
-     * Default is 0.0
-     */
-    public void setViewportShiftX(double shiftX) {
-        this.viewportShiftX.set(shiftX);
-    }
-
-    /**
-     * Shift viewport along Y axis.
-     * <br/>
-     * Default is 0.0
-     */
-    public void setViewportShiftY(double shiftY) {
-        this.viewportShiftY.set(shiftY);
-    }
-
-    /**
-     * Shift viewport.
-     * <br/>
-     * Default is 0.0, 0.0
-     */
-    public void setViewportShift(double shiftX, double shiftY) {
-        setViewportShiftX(shiftX);
-        setViewportShiftY(shiftY);
-    }
-
-    /**
-     * Rotate viewport.
-     * <br/>
-     * Default is 0.0
-     */
-    public void setViewportAngle(double angle) {
-        this.viewportShiftA.set(angle);
-    }
-
-    public Point screenToWorld(int screenX, int screenY, int canvasWidth, int canvasHeight) {
+    public com.github.drxaos.spriter.Point screenToWorld(int screenX, int screenY, int canvasWidth, int canvasHeight) {
         double vpWidth = viewportWidth.get();
         double vpHeight = viewportHeight.get();
 
@@ -121,10 +44,10 @@ public class Renderer extends RenderChain {
         worldX = worldX < -vpWidth / 2 ? -vpWidth / 2 : worldX;
         worldY = worldY < -vpHeight / 2 ? -vpHeight / 2 : worldY;
 
-        return new Point(worldX, worldY);
+        return new com.github.drxaos.spriter.Point(worldX, worldY);
     }
 
-    public Point worldToScreen(int worldX, int worldY, int canvasWidth, int canvasHeight) {
+    public com.github.drxaos.spriter.Point worldToScreen(int worldX, int worldY, int canvasWidth, int canvasHeight) {
         double vpWidth = viewportWidth.get();
         double vpHeight = viewportHeight.get();
 
@@ -135,7 +58,7 @@ public class Renderer extends RenderChain {
         double screenX = (canvasWidth / 2) + worldX * size;
         double screenY = (canvasHeight / 2) + worldY * size;
 
-        return new Point(screenX, screenY);
+        return new com.github.drxaos.spriter.Point(screenX, screenY);
     }
 
     /**
@@ -156,6 +79,15 @@ public class Renderer extends RenderChain {
         this.bilinearInterpolation.set(bilinearInterpolation);
     }
 
+    @Override
+    public void render(Scene scene) {
+        background = output.getCanvasImage();
+        backgroundGraphics = output.getCanvasGraphics();
+        render(scene, backgroundGraphics, background.getWidth(null), background.getHeight(null));
+        output.setCanvasImage(background);
+
+    }
+
     /**
      * Show debug info
      */
@@ -164,6 +96,10 @@ public class Renderer extends RenderChain {
     }
 
     public void render(Scene scene, Graphics2D g, int width, int height) {
+        if (spriter == null) {
+            return;
+        }
+
         if (System.currentTimeMillis() - rpsCounterStart > 1000) {
             rps = rpsCounter.getAndSet(0);
             rpsCounterStart = System.currentTimeMillis();
@@ -297,12 +233,12 @@ public class Renderer extends RenderChain {
 
         trans.translate(-sprite.snapshotGetDx() * size, -sprite.snapshotGetDy() * size);
         trans.rotate(pa + sprite.snapshotGetAngle());
-        trans.scale(1d * iw / sprite.snapshotGetProto().getFrmW(), 1d * ih / sprite.snapshotGetProto().getFrmH());
-        trans.translate(sprite.snapshotGetDx() * size / (1d * iw / sprite.snapshotGetProto().getFrmW()), sprite.snapshotGetDy() * size / (1d * ih / sprite.snapshotGetProto().getFrmH()));
+        trans.scale(1d * iw / sprite.snapshotGetProto().getFrameWidth(), 1d * ih / sprite.snapshotGetProto().getFrameHeight());
+        trans.translate(sprite.snapshotGetDx() * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), sprite.snapshotGetDy() * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
 
-        trans.translate(sprite.snapshotGetWidth() / 2 * size / (1d * iw / sprite.snapshotGetProto().getFrmW()), sprite.snapshotGetHeight() / 2 * size / (1d * ih / sprite.snapshotGetProto().getFrmH()));
+        trans.translate(sprite.snapshotGetWidth() / 2 * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), sprite.snapshotGetHeight() / 2 * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
         trans.scale(sprite.snapshotGetFlipX() ? -1 : 1, sprite.snapshotGetFlipY() ? -1 : 1);
-        trans.translate(-sprite.snapshotGetWidth() / 2 * size / (1d * iw / sprite.snapshotGetProto().getFrmW()), -sprite.snapshotGetHeight() / 2 * size / (1d * ih / sprite.snapshotGetProto().getFrmH()));
+        trans.translate(-sprite.snapshotGetWidth() / 2 * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), -sprite.snapshotGetHeight() / 2 * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
 
         g.drawRenderedImage(sprite.snapshotGetFrame(), trans);
     }

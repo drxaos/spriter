@@ -3,7 +3,7 @@ package com.github.drxaos.spriter.examples;
 import com.github.drxaos.spriter.Proto;
 import com.github.drxaos.spriter.Sprite;
 import com.github.drxaos.spriter.Spriter;
-import com.github.drxaos.spriter.SpriterUtils;
+import com.github.drxaos.spriter.Utils;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -11,8 +11,8 @@ import java.io.IOException;
 public class Animation {
 
     public static BufferedImage loadImage(String name) throws IOException {
-        BufferedImage image = SpriterUtils.loadImageFromResource(name);
-        return SpriterUtils.scaleImage(image, image.getWidth() * 10, image.getHeight() * 10, true);
+        BufferedImage image = Utils.loadImageFromResource(name);
+        return Utils.scaleImage(image, image.getWidth() * 10, image.getHeight() * 10, true);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

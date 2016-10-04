@@ -304,10 +304,10 @@ public class Tiles {
         spriter.setViewportShiftX(5 - 0.5);
         spriter.setViewportShiftY(5 - 0.5);
 
-        BufferedImage tilesSpriteSheet = SpriterUtils.loadImageFromResource("/tiles.png");
-        BufferedImage playerSpriteSheet = SpriterUtils.loadImageFromResource("/alien.png");
-        BufferedImage numbersSpriteSheet = SpriterUtils.loadImageFromResource("/numbers.png");
-        BufferedImage hudSpriteSheet = SpriterUtils.loadImageFromResource("/hud.png");
+        BufferedImage tilesSpriteSheet = Utils.loadImageFromResource("/tiles.png");
+        BufferedImage playerSpriteSheet = Utils.loadImageFromResource("/alien.png");
+        BufferedImage numbersSpriteSheet = Utils.loadImageFromResource("/numbers.png");
+        BufferedImage hudSpriteSheet = Utils.loadImageFromResource("/hud.png");
 
         tileProto = spriter.createProto(tilesSpriteSheet, 35, 35, 70, 70).newInstance(1, 1).setZ(L_TILE);
         playerProto = spriter.createProto(playerSpriteSheet, 72 / 2, 97, 72, 97).newInstance(0.75).setZ(L_PLAYER);
@@ -640,7 +640,7 @@ public class Tiles {
         BufferedImage shadowImage = new BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR);
         shadowImage.setRGB(0, 0, 0);
         Sprite shadow = spriter.createProto(shadowImage, 0.5, 0.5).newInstance(10, 10).setZ(L_SHADOW).setHud(true);
-        Sprite win = spriter.createProto(SpriterUtils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2).newInstance(4).setZ(L_WIN).setHud(true);
+        Sprite win = spriter.createProto(Utils.loadImageFromResource("/win.png"), 314 / 2, 139 / 2).newInstance(4).setZ(L_WIN).setHud(true);
 
         int f = 0;
         while (true) {

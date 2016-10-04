@@ -1,31 +1,58 @@
 package com.github.drxaos.spriter;
 
-public interface Control {
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * Input manager
+ */
+public class Control {
+
+    private AtomicReference<Double>
+            mx = new AtomicReference<>(0d),
+            my = new AtomicReference<>(0d);
+    private AtomicReference<Click> c = new AtomicReference<>();
+    private AtomicReference<Integer> k = new AtomicReference<>(null);
+
+    private Map<Integer, AtomicBoolean> buttons = new HashMap<>();
+    private Map<Integer, AtomicBoolean> keys = new HashMap<>();
 
     /**
      * Get current mouse X coordinate.
      */
-    double getMouseX();
+    public double getMouseX() {
+        return mx.get();
+    }
 
     /**
      * Get current mouse Y coordinate.
      */
-    double getMouseY();
+    public double getMouseY() {
+        return my.get();
+    }
 
     /**
      * Get current mouse coordinates.
      */
-    Point getMousePos();
+    public Point getMousePos() {
+        return new Point(getMouseX(), getMouseY());
+    }
 
     /**
      * Get last mouse click coordinates and button.
      */
-    Click getClick();
+    public Click getClick() {
+        return c.getAndSet(null);
+    }
 
     /**
      * Get last pressed key.
      */
-    Integer getKeyPress();
+    public Integer getKeyPress() {
+        return k.getAndSet(null);
+    }
 
     /**
      * Check if mouse button is pressed now.
@@ -37,7 +64,13 @@ public interface Control {
      * <br/>
      * See also {@link java.awt.event.MouseEvent}
      */
-    boolean isButtonDown(int btn);
+    public boolean isButtonDown(int btn) {
+        AtomicBoolean b = buttons.get(btn);
+        if (b == null) {
+            return false;
+        }
+        return b.get();
+    }
 
     /**
      * Check if keyboard key is pressed now.
@@ -49,7 +82,13 @@ public interface Control {
      * <br/>
      * See also {@link java.awt.event.KeyEvent}
      */
-    boolean isKeyDown(int key);
+    public boolean isKeyDown(int key) {
+        AtomicBoolean b = keys.get(key);
+        if (b == null) {
+            return false;
+        }
+        return b.get();
+    }
 
     /**
      * Check if any of keyboard keys from list is pressed now.
@@ -61,10 +100,30 @@ public interface Control {
      * <br/>
      * See also {@link java.awt.event.KeyEvent}
      */
-    boolean isAnyKeyDown(int... keys);
+    public boolean isAnyKeyDown(int... keys) {
+        for (int key : keys) {
+            if (isKeyDown(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Dump input state to console.
      */
-    void dump();
+    public void dump() {
+        String dump = "";
+        for (Map.Entry<Integer, AtomicBoolean> entry : buttons.entrySet()) {
+            if (entry.getValue().get()) {
+                dump += "b" + entry.getKey() + ",";
+            }
+        }
+        for (Map.Entry<Integer, AtomicBoolean> entry : keys.entrySet()) {
+            if (entry.getValue().get()) {
+                dump += "k" + entry.getKey() + ",";
+            }
+        }
+        System.out.println(dump);
+    }
 }

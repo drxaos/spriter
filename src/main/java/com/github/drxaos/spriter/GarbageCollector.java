@@ -2,33 +2,33 @@ package com.github.drxaos.spriter;
 
 public class GarbageCollector {
 
-    private boolean shouldGC = false;
+    private long last = 0l;
     private boolean autoGC = true;
     private boolean debugGC = false;
 
     /**
      * Auto garbage collection every second.
      */
-    void setAutoGC(boolean autoGC) {
+    public void setAutoGC(boolean autoGC) {
         this.autoGC = autoGC;
     }
 
     /**
      * Show collected objects count.
      */
-    void setDebugGC(boolean debugGC) {
+    public void setDebugGC(boolean debugGC) {
         this.debugGC = debugGC;
     }
 
-    void endFrame(Scene scene) {
-        if (shouldGC) {
-            shouldGC = false;
+    public void endFrame(Scene scene) {
+        if (!autoGC) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - last > 1000) {
+            last = now;
             garbageCollect(scene);
         }
-    }
-
-    void triggerAuto() {
-        shouldGC = autoGC;
     }
 
     public int garbageCollect(Scene scene) {
@@ -66,6 +66,4 @@ public class GarbageCollector {
         System.gc();
         return collected;
     }
-
-
 }

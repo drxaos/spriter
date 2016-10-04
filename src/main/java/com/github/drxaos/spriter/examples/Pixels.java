@@ -2,7 +2,7 @@ package com.github.drxaos.spriter.examples;
 
 import com.github.drxaos.spriter.Sprite;
 import com.github.drxaos.spriter.Spriter;
-import com.github.drxaos.spriter.SpriterUtils;
+import com.github.drxaos.spriter.Utils;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -15,7 +15,7 @@ public class Pixels {
     static final int L_PENGUIN = 200;
 
     public static BufferedImage loadImage(String name) throws IOException {
-        BufferedImage image = SpriterUtils.loadImageFromResource(name);
+        BufferedImage image = Utils.loadImageFromResource(name);
         BufferedImage aimage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
         aimage.getGraphics().drawImage(image, 0, 0, null);
         int[] bufferbyte = ((DataBufferInt) aimage.getRaster().getDataBuffer()).getData();
@@ -24,7 +24,7 @@ public class Pixels {
                 bufferbyte[i] = 0;
             }
         }
-        BufferedImage scaled = SpriterUtils.scaleImage(aimage, aimage.getWidth() * 10, aimage.getHeight() * 10, false);
+        BufferedImage scaled = Utils.scaleImage(aimage, aimage.getWidth() * 10, aimage.getHeight() * 10, false);
         return scaled;
     }
 

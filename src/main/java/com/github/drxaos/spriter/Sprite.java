@@ -29,14 +29,10 @@ public class Sprite {
     public final static int ALPHA = 12;
     public final static int PARENT = 13;
 
-    int index;
     long[] active = new long[16];
     long[] snapshot = new long[16];
 
-    private transient Spriter spriter;
-    private transient Scene scene;
-
-    private Proto snapshotCachedProto;
+    private transient Proto snapshotCachedProto;
 
     public Sprite(Spriter spriter, Scene scene, Proto proto, double objectWidth, double objectHeight) {
         this.spriter = spriter;
@@ -44,7 +40,7 @@ public class Sprite {
         setProto(proto);
 
         if (objectHeight < 0) {
-            objectHeight = objectWidth * proto.getFrmH() / proto.getFrmW();
+            objectHeight = objectWidth * proto.getFrameHeight() / proto.getFrameWidth();
         }
 
         setX(0d);
@@ -52,8 +48,8 @@ public class Sprite {
         setAngle(0d);
         setWidth(objectWidth);
         setHeight(objectHeight);
-        setDx(-(objectWidth * proto.getImgCX() / proto.getFrmW()));
-        setDy(-(objectHeight * proto.getImgCY() / proto.getFrmH()));
+        setDx(-(objectWidth * proto.getAnchorX() / proto.getFrameWidth()));
+        setDy(-(objectHeight * proto.getAnchorY() / proto.getFrameHeight()));
         setZ(0d);
         setFrame(0);
         setFrameRow(0);
@@ -135,8 +131,8 @@ public class Sprite {
     public Sprite setWidthProportional(double w) {
         dirty();
         active[WIDTH] = Double.doubleToRawLongBits(w);
-        active[DX] = Double.doubleToRawLongBits(-(w * getProto().getImgCX() / getProto().getFrmW()));
-        setHeight(w * getProto().getFrmH() / getProto().getFrmW());
+        active[DX] = Double.doubleToRawLongBits(-(w * getProto().getAnchorX() / getProto().getFrameWidth()));
+        setHeight(w * getProto().getFrameHeight() / getProto().getFrameWidth());
         return this;
     }
 
@@ -146,8 +142,8 @@ public class Sprite {
     public Sprite setHeightProportional(double h) {
         dirty();
         active[HEIGHT] = Double.doubleToRawLongBits(h);
-        active[DY] = Double.doubleToRawLongBits(-(h * getProto().getImgCY() / getProto().getFrmH()));
-        setWidth(h * getProto().getFrmW() / getProto().getFrmH());
+        active[DY] = Double.doubleToRawLongBits(-(h * getProto().getAnchorY() / getProto().getFrameHeight()));
+        setWidth(h * getProto().getFrameWidth() / getProto().getFrameHeight());
         return this;
     }
 
@@ -164,7 +160,7 @@ public class Sprite {
     public Sprite setWidth(double w) {
         dirty();
         active[WIDTH] = Double.doubleToRawLongBits(w);
-        active[DX] = Double.doubleToRawLongBits(-(w * getProto().getImgCX() / getProto().getFrmW()));
+        active[DX] = Double.doubleToRawLongBits(-(w * getProto().getAnchorX() / getProto().getFrameWidth()));
         return this;
     }
 
@@ -181,7 +177,7 @@ public class Sprite {
     public Sprite setHeight(double h) {
         dirty();
         active[HEIGHT] = Double.doubleToRawLongBits(h);
-        active[DY] = Double.doubleToRawLongBits(-(h * getProto().getImgCY() / getProto().getFrmH()));
+        active[DY] = Double.doubleToRawLongBits(-(h * getProto().getAnchorY() / getProto().getFrameHeight()));
         return this;
     }
 

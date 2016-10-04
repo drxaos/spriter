@@ -6,17 +6,12 @@ import java.awt.image.BufferedImage;
  * Sprite prototype
  */
 public class Proto {
-    private int index;
-
-    private transient Spriter spriter;
-
     private BufferedImage img;
     private int imgW, imgH;
     private int frmW, frmH;
     private double imgCX, imgCY;
 
     private final transient BufferedImage[][] scaledImg;
-    private transient Scene scene;
 
     Proto(Spriter spriter, Scene scene, BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
         this.spriter = spriter;
@@ -64,31 +59,31 @@ public class Proto {
         this.index = index;
     }
 
-    BufferedImage getImg() {
+    BufferedImage getImage() {
         return img;
     }
 
-    int getImgW() {
+    int getImageWidth() {
         return imgW;
     }
 
-    int getImgH() {
+    int getImageHeight() {
         return imgH;
     }
 
-    int getFrmW() {
+    int getFrameWidth() {
         return frmW;
     }
 
-    int getFrmH() {
+    int getFrameHeight() {
         return frmH;
     }
 
-    double getImgCX() {
+    double getAnchorX() {
         return imgCX;
     }
 
-    double getImgCY() {
+    double getAnchorY() {
         return imgCY;
     }
 

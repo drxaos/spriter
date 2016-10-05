@@ -6,13 +6,15 @@ import java.awt.image.BufferedImage;
 public class Spriter {
 
     private Output output;
+    private Object renderLock;
 
     private Renderer renderer;
     private Fps fps;
 
     private Scene scene;
     private GarbageCollector gc;
-    private MainLoop mainLoop;
+
+    private boolean shutdown = false;
 
     private Spriter() {
     }
@@ -37,10 +39,6 @@ public class Spriter {
         this.gc = gc;
     }
 
-    public void setMainLoop(MainLoop mainLoop) {
-        this.mainLoop = mainLoop;
-    }
-
     public static Spriter createDefault() {
         Spriter spriter = new Spriter();
         Output output = new Output();
@@ -48,16 +46,14 @@ public class Spriter {
         Fps fps = new Fps();
         Scene scene = new Scene();
         GarbageCollector garbageCollector = new GarbageCollector();
-        MainLoop mainLoop = new MainLoop();
 
         spriter.setOutput(output);
         spriter.setRenderer(renderer);
         spriter.setFps(fps);
         spriter.setScene(scene);
         spriter.setGc(garbageCollector);
-        spriter.setMainLoop(mainLoop);
 
-        mainLoop.start();
+        spriter.new Loop().start();
 
         return spriter;
     }
@@ -67,8 +63,7 @@ public class Spriter {
             Renderer renderer,
             Fps fps,
             Scene scene,
-            GarbageCollector garbageCollector,
-            MainLoop mainLoop
+            GarbageCollector garbageCollector
     ) {
         Spriter spriter = new Spriter();
 
@@ -77,9 +72,8 @@ public class Spriter {
         spriter.setFps(fps);
         spriter.setScene(scene);
         spriter.setGc(garbageCollector);
-        spriter.setMainLoop(mainLoop);
 
-        mainLoop.start();
+        spriter.new Loop().start();
 
         return spriter;
     }
@@ -285,12 +279,45 @@ public class Spriter {
     }
 
     public void shutdown() {
-        mainLoop.shutdown();
+        shutdown = true;
     }
 
     public void gc() {
         gc.garbageCollect(scene);
     }
 
+    private class Loop extends Thread {
+
+        Loop() {
+            super("Spriter rendering loop");
+        }
+
+        public void run() {
+            while (true) {
+                if (output.isClosing() || shutdown) {
+                    break;
+                }
+
+                calculateFps();
+
+                do {
+                    long currentFrame = fpsCounter.get();
+
+                    renderer.render(scene);
+
+                    try {
+                        synchronized (renderLock) {
+                            if (fpsCounter.get() == currentFrame) {
+                                renderLock.wait();
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                } while (!output.sync());
+
+            }
+        }
+    }
 
 }

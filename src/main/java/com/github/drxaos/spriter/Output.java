@@ -22,10 +22,16 @@ public class Output extends JFrame {
 
     private AtomicBoolean resized = new AtomicBoolean(false);
 
+    private boolean closing = false;
+
     private Cursor defaultCursor, blankCursor;
 
     static {
         System.setProperty("sun.awt.noerasebackground", "true");
+    }
+
+    public boolean isClosing() {
+        return closing;
     }
 
     /**
@@ -100,7 +106,7 @@ public class Output extends JFrame {
             @Override
             public void mouseClicked(MouseEvent e) {
                 com.github.drxaos.spriter.Point wp = spriter.screenToWorld(e.getX(), e.getY());
-                control.setMouseClicked(wp.getX(),wp.getY(),e.getButton());
+                control.setMouseClicked(wp.getX(), wp.getY(), e.getButton());
             }
         });
         setFocusTraversalKeysEnabled(false);
@@ -163,7 +169,6 @@ public class Output extends JFrame {
         return canvas.getHeight();
     }
 
-    @Override
     public boolean sync() {
         return updateScreen();
     }
@@ -196,7 +201,7 @@ public class Output extends JFrame {
     private class FrameClose extends WindowAdapter {
         @Override
         public void windowClosing(final WindowEvent e) {
-            spriter.shutdown();
+            closing = true;
         }
     }
 

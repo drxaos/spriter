@@ -30,9 +30,9 @@ public class Pixels {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Pixels");
-        spriter.getDefaultRenderer().setAntialiasing(false);
-        spriter.getDefaultRenderer().setBilinearInterpolation(false);
+        Spriter spriter = Spriter.createDefault("Pixels");
+        spriter.getRenderer().setAntialiasing(false);
+        spriter.getRenderer().setBilinearInterpolation(false);
 
         spriter.setBackgroundColor(Color.decode("#D0F4F7"));
         spriter.setViewportShiftY(-0.3);

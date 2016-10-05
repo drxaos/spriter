@@ -295,7 +295,7 @@ public class Tiles {
         Clip winClip = AudioSystem.getClip();
         winClip.open(winSoundStream);
 
-        Spriter spriter = new Spriter("Tiles");
+        Spriter spriter = Spriter.createDefault("Tiles");
         spriter.setBackgroundColor(Color.decode("#D0F4F7"));
         spriter.setBorderColor(Color.decode("#37878e"));
 

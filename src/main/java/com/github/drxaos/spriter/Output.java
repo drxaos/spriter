@@ -8,7 +8,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Output extends JFrame {
+public class Output extends JFrame implements IOutput {
 
     private Canvas canvas;
     private BufferStrategy strategy;
@@ -30,6 +30,9 @@ public class Output extends JFrame {
         System.setProperty("sun.awt.noerasebackground", "true");
     }
 
+    private Spriter spriter;
+
+    @Override
     public boolean isClosing() {
         return closing;
     }
@@ -37,10 +40,12 @@ public class Output extends JFrame {
     /**
      * Get control instance for this Spriter window.
      */
+    @Override
     public synchronized Control getControl() {
         return control;
     }
 
+    @Override
     public VolatileImage makeVolatileImage(final int width, final int height, final boolean alpha) {
         VolatileImage compatibleImage = config.createCompatibleVolatileImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
         compatibleImage.setAccelerationPriority(1);
@@ -53,6 +58,7 @@ public class Output extends JFrame {
      * <br/>
      * Default is false.
      */
+    @Override
     public void setShowCursor(boolean show) {
         canvas.setCursor(show ? defaultCursor : blankCursor);
     }
@@ -105,7 +111,7 @@ public class Output extends JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                com.github.drxaos.spriter.Point wp = spriter.screenToWorld(e.getX(), e.getY());
+                Point wp = spriter.getScene().screenToWorld(e.getX(), e.getY(), getCanvasWidth(), getCanvasHeight());
                 control.setMouseClicked(wp.getX(), wp.getY(), e.getButton());
             }
         });
@@ -115,23 +121,12 @@ public class Output extends JFrame {
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                AtomicBoolean b = control.keys.get(e.getKeyCode());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.keys.put(e.getKeyCode(), b);
-                }
-                b.set(true);
-                control.k.set(e.getKeyCode());
+                control.setKeyPressed(e.getKeyCode(), true);
             }
 
             @Override
             public void keyReleased(KeyEvent e) {
-                AtomicBoolean b = control.keys.get(e.getKeyCode());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.keys.put(e.getKeyCode(), b);
-                }
-                b.set(false);
+                control.setKeyPressed(e.getKeyCode(), false);
             }
         });
         canvas.addMouseMotionListener(new MouseMotionAdapter() {
@@ -142,9 +137,11 @@ public class Output extends JFrame {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                com.github.drxaos.spriter.Point wp = spriter.screenToWorld(e.getX(), e.getY());
-                control.mx.set(wp.getX());
-                control.my.set(wp.getY());
+                if (spriter == null || spriter.getScene() == null) {
+                    return;
+                }
+                Point wp = spriter.getScene().screenToWorld(e.getX(), e.getY(), getCanvasWidth(), getCanvasHeight());
+                control.setMouseMoved(wp.getX(), wp.getY());
             }
         });
 
@@ -161,14 +158,17 @@ public class Output extends JFrame {
         while (strategy == null);
     }
 
+    @Override
     public int getCanvasWidth() {
         return canvas.getWidth();
     }
 
+    @Override
     public int getCanvasHeight() {
         return canvas.getHeight();
     }
 
+    @Override
     public boolean sync() {
         return updateScreen();
     }
@@ -180,22 +180,30 @@ public class Output extends JFrame {
         }
     }
 
+    @Override
     public Image getCanvasImage() {
         checkResized();
         return background;
     }
 
+    @Override
     public Graphics2D getCanvasGraphics() {
         checkResized();
         return backgroundGraphics;
     }
 
+    @Override
     public void setCanvasImage(Image canvasImage) {
         Graphics2D bg = getBuffer();
         if (bg != null) {
             bg.drawImage(canvasImage, 0, 0, null);
             bg.dispose();
         }
+    }
+
+    @Override
+    public void setSpriter(Spriter spriter) {
+        this.spriter = spriter;
     }
 
     private class FrameClose extends WindowAdapter {
@@ -216,6 +224,7 @@ public class Output extends JFrame {
         return graphics;
     }
 
+    @Override
     public boolean updateScreen() {
         graphics.dispose();
         graphics = null;
@@ -232,6 +241,7 @@ public class Output extends JFrame {
         }
     }
 
+    @Override
     public Image makeOutputImage(final int width, final int height, final boolean alpha) {
         return makeVolatileImage(width, height, alpha);
     }

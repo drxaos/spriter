@@ -11,7 +11,7 @@ public class Animation2 {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Animation 2");
+        Spriter spriter = Spriter.createDefault("Animation 2");
 
         Proto fireProto = spriter.createProto(Utils.loadImageFromResource("/fire.jpg"), 320 / 2, 320 / 2, 320, 320);
         Sprite fire = fireProto.newInstance(2, 2);

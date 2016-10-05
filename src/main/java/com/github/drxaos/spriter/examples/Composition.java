@@ -122,9 +122,7 @@ public class Composition {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Composition");
-        spriter.setAutoGC(false);
-        spriter.setDebugGC(true);
+        Spriter spriter = Spriter.createDefault("Composition");
 
         BufferedImage tankSpriteSheet = loadImage("/tank1.png");
         BufferedImage wheelFLSprite = tankSpriteSheet.getSubimage(0, 0, 161, 304);
@@ -147,7 +145,6 @@ public class Composition {
 
         Tank tank = new Tank();
 
-        int gc = 200;
         double t = 0;
         double w = 0;
         double a = 0;
@@ -197,12 +194,6 @@ public class Composition {
                     iterator.remove();
                     bullet.destroy();
                 }
-            }
-
-            gc--;
-            if (gc < 0) {
-                gc = 200;
-                spriter.gc();
             }
 
             spriter.endFrame();

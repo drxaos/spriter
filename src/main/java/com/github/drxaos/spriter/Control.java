@@ -19,7 +19,6 @@ public class Control {
     private Map<Integer, AtomicBoolean> buttons = new HashMap<>();
     private Map<Integer, AtomicBoolean> keys = new HashMap<>();
 
-
     public void setMousePressed(int button, boolean pressed) {
         AtomicBoolean b = buttons.get(button);
         if (b == null) {
@@ -31,6 +30,21 @@ public class Control {
 
     public void setMouseClicked(double x, double y, int button) {
         c.set(new Click(x, y, button));
+    }
+
+    public void setMouseMoved(double x, double y) {
+        mx.set(x);
+        my.set(y);
+    }
+
+    public void setKeyPressed(int keyCode, boolean pressed) {
+        AtomicBoolean b = keys.get(keyCode);
+        if (b == null) {
+            b = new AtomicBoolean();
+            keys.put(keyCode, b);
+        }
+        b.set(pressed);
+        k.set(keyCode);
     }
 
     /**
@@ -140,5 +154,4 @@ public class Control {
         }
         System.out.println(dump);
     }
-
 }

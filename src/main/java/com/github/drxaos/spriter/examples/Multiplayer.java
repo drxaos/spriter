@@ -57,15 +57,13 @@ public class Multiplayer {
     static Sprite[] star = new Sprite[10000];
 
 
-
-
     public static void main(String[] args) throws Exception {
 
-        Spriter spriter = new Spriter("Multiplayer");
+        Spriter spriter = Spriter.createDefault("Multiplayer");
         spriter.setViewportWidth(15);
         spriter.setViewportHeight(15);
-        spriter.setDebugGC(true);
 
+        spriter.beginFrame();
         spriter.setBackgroundColor(Color.BLACK);
         Sprite loading = spriter.createProto(Utils.loadImageFromResource("/loading.png"), 367 / 2, 62 / 2).newInstance(5);
         spriter.endFrame();
@@ -159,7 +157,9 @@ public class Multiplayer {
         }
 
         spriter.setDebug(true);
-        spriter.setRenderChain(new TwinView(spriter));
+
+        TwinView twinView = new TwinView(spriter);
+        spriter.setRenderer(twinView);
 
         Control control = spriter.getControl();
 
@@ -186,6 +186,7 @@ public class Multiplayer {
             player1_y += player1_vy;
             player_green.setPos(player1_x, player1_y);
 
+            twinView.setVpRight(player1_x, player1_y);
 
             if (control.isKeyDown(KeyEvent.VK_A)) {
                 player2_a -= 0.06;
@@ -207,6 +208,7 @@ public class Multiplayer {
             player2_y += player2_vy;
             player_red.setPos(player2_x, player2_y);
 
+            twinView.setVpLeft(player2_x, player2_y);
 
             for (int i = 0; i < wall_counter; i++) {
                 double deltaX = wall_x[i] - player1_x;

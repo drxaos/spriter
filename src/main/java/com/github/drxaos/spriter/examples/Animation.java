@@ -17,7 +17,7 @@ public class Animation {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Animation");
+        Spriter spriter = Spriter.createDefault("Animation");
         Proto characterProto = spriter.createProto(loadImage("/sprite-steps.png"), 50 / 2 * 10, 72 * 10, 50 * 10, 72 * 10);
 
         Sprite characters[] = new Sprite[10];

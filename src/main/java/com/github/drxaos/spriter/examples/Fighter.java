@@ -24,7 +24,7 @@ public class Fighter {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Spriter spriter = new Spriter("Fighter");
+        Spriter spriter = Spriter.createDefault("Fighter");
         Sprite cur1 = spriter.createProto(loadImage("/cur1.png"), 7, 7).newInstance(0.08).setZ(LAYER_HUD);
         Sprite cur2 = spriter.createProto(loadImage("/cur2.png"), 7, 7).newInstance(0.08).setZ(LAYER_HUD);
         Sprite fighter = spriter.createProto(loadImage("/fighter-01.png").getSubimage(3, 3, 713, 705), 354, 420).newInstance(0.25).setZ(LAYER_AIR);

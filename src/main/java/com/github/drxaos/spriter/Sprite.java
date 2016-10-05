@@ -29,13 +29,15 @@ public class Sprite {
     public final static int ALPHA = 12;
     public final static int PARENT = 13;
 
+    private IScene scene;
+    private int index = -1;
+
     long[] active = new long[16];
     long[] snapshot = new long[16];
 
     private transient Proto snapshotCachedProto;
 
-    public Sprite(Spriter spriter, Scene scene, Proto proto, double objectWidth, double objectHeight) {
-        this.spriter = spriter;
+    public Sprite(IScene scene, Proto proto, double objectWidth, double objectHeight) {
         this.scene = scene;
         setProto(proto);
 
@@ -64,7 +66,6 @@ public class Sprite {
     }
 
     public Sprite(Sprite sprite) {
-        this.spriter = sprite.spriter;
         this.scene = sprite.scene;
         System.arraycopy(sprite.active, 0, active, 0, active.length);
         System.arraycopy(sprite.snapshot, 0, snapshot, 0, snapshot.length);
@@ -225,7 +226,7 @@ public class Sprite {
      * Create new instance of sprite. Image data will be shared between all instances.
      */
     public Sprite newInstance() {
-        return spriter.copySprite(this);
+        return scene.copySprite(this);
     }
 
     /**
@@ -235,6 +236,7 @@ public class Sprite {
         dirty();
         active[FLAGS] |= FLAGS_REMOVE;
         setParent(null);
+        scene.remove(this);
     }
 
     double getX() {

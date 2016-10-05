@@ -6,6 +6,10 @@ import java.awt.image.BufferedImage;
  * Sprite prototype
  */
 public class Proto {
+
+    private IScene scene;
+    private int index = -1;
+
     private BufferedImage img;
     private int imgW, imgH;
     private int frmW, frmH;
@@ -13,8 +17,7 @@ public class Proto {
 
     private final transient BufferedImage[][] scaledImg;
 
-    Proto(Spriter spriter, Scene scene, BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
-        this.spriter = spriter;
+    Proto(Spriter spriter, IScene scene, BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
         this.scene = scene;
 
         this.img = image;
@@ -89,10 +92,10 @@ public class Proto {
 
 
     public Sprite newInstance(double objectWidth) {
-        return spriter.createSprite(this, objectWidth);
+        return scene.createSprite(this, objectWidth);
     }
 
     public Sprite newInstance(double objectWidth, double objectHeight) {
-        return spriter.createSprite(this, objectWidth, objectHeight);
+        return scene.createSprite(this, objectWidth, objectHeight);
     }
 }

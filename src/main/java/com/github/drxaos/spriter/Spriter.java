@@ -5,53 +5,80 @@ import java.awt.image.BufferedImage;
 
 public class Spriter {
 
-    private Output output;
-    private Object renderLock;
+    private IOutput output;
+    private Object renderLock = new Object();
 
-    private Renderer renderer;
-    private Fps fps;
+    private IRenderer renderer;
+    private IFps fps;
 
-    private Scene scene;
-    private GarbageCollector gc;
+    private IScene scene;
 
     private boolean shutdown = false;
 
     private Spriter() {
     }
 
-    public void setOutput(Output output) {
+    public void setOutput(IOutput output) {
+        if (this.output != null) {
+            this.output.setSpriter(null);
+        }
         this.output = output;
+        output.setSpriter(this);
     }
 
-    public void setRenderer(Renderer renderer) {
+    public void setRenderer(IRenderer renderer) {
+        if (this.renderer != null) {
+            this.renderer.setSpriter(null);
+        }
         this.renderer = renderer;
+        renderer.setSpriter(this);
     }
 
-    public void setFps(Fps fps) {
+    public void setFps(IFps fps) {
+        if (this.fps != null) {
+            this.fps.setSpriter(null);
+        }
         this.fps = fps;
+        fps.setSpriter(this);
     }
 
-    public void setScene(Scene scene) {
+    public void setScene(IScene scene) {
+        if (this.scene != null) {
+            this.scene.setSpriter(null);
+        }
         this.scene = scene;
+        scene.setSpriter(this);
     }
 
-    public void setGc(GarbageCollector gc) {
-        this.gc = gc;
+    public IOutput getOutput() {
+        return output;
+    }
+
+    public IFps getFps() {
+        return fps;
+    }
+
+    public IScene getScene() {
+        return scene;
+    }
+
+    public static Spriter createDefault(String title) {
+        Spriter spriter = createDefault();
+        spriter.setTitle(title);
+        return spriter;
     }
 
     public static Spriter createDefault() {
         Spriter spriter = new Spriter();
-        Output output = new Output();
-        Renderer renderer = new Renderer();
-        Fps fps = new Fps();
-        Scene scene = new Scene();
-        GarbageCollector garbageCollector = new GarbageCollector();
+        IOutput output = new Output();
+        IRenderer renderer = new Renderer();
+        IFps fps = new Fps();
+        IScene scene = new Scene();
 
         spriter.setOutput(output);
         spriter.setRenderer(renderer);
         spriter.setFps(fps);
         spriter.setScene(scene);
-        spriter.setGc(garbageCollector);
 
         spriter.new Loop().start();
 
@@ -59,11 +86,10 @@ public class Spriter {
     }
 
     public static Spriter createCustom(
-            Output output,
-            Renderer renderer,
-            Fps fps,
-            Scene scene,
-            GarbageCollector garbageCollector
+            IOutput output,
+            IRenderer renderer,
+            IFps fps,
+            IScene scene
     ) {
         Spriter spriter = new Spriter();
 
@@ -71,7 +97,6 @@ public class Spriter {
         spriter.setRenderer(renderer);
         spriter.setFps(fps);
         spriter.setScene(scene);
-        spriter.setGc(garbageCollector);
 
         spriter.new Loop().start();
 
@@ -102,24 +127,10 @@ public class Spriter {
     }
 
     /**
-     * Set target FPS. Spriter will sleep in endFrame().
+     * Set target FPS. Spriter will sleep in sleepAfterFrame().
      */
     public void setTargetFps(int targetFps) {
         fps.setTargetFps(targetFps);
-    }
-
-    /**
-     * Auto garbage collection every second.
-     */
-    public void setAutoGC(boolean autoGC) {
-        gc.setAutoGC(autoGC);
-    }
-
-    /**
-     * Show collected objects count.
-     */
-    public void setDebugGC(boolean debugGC) {
-        gc.setDebugGC(debugGC);
     }
 
     /**
@@ -134,18 +145,17 @@ public class Spriter {
      */
     public void endFrame() throws InterruptedException {
         synchronized (renderLock) {
-            gc.endFrame(scene);
             scene.snapshot();
             renderLock.notifyAll();
         }
 
-        fps.endFrame();
+        fps.sleepAfterFrame();
     }
 
     /**
      * Get renderer
      */
-    public Renderer getRenderer() {
+    public IRenderer getRenderer() {
         return renderer;
     }
 
@@ -251,7 +261,10 @@ public class Spriter {
      * @return new sprite
      */
     public Sprite createSprite(Proto proto, double objectWidth, double objectHeight) {
-        Sprite sprite = new Sprite(this, scene, proto, objectWidth, objectHeight);
+        if (scene.getProtoByIndex(proto.getIndex()) != proto) {
+            proto = createProto(proto.getImage(), proto.getAnchorX(), proto.getAnchorY(), proto.getFrameWidth(), proto.getFrameHeight());
+        }
+        Sprite sprite = new Sprite(scene, proto, objectWidth, objectHeight);
         scene.addSprite(sprite);
         return sprite;
     }
@@ -266,24 +279,31 @@ public class Spriter {
      * @return new sprite
      */
     public Sprite createSprite(Proto proto, double objectWidth) {
-        Sprite sprite = new Sprite(this, scene, proto, objectWidth, -1d);
+        if (scene.getProtoByIndex(proto.getIndex()) != proto) {
+            proto = createProto(proto.getImage(), proto.getAnchorX(), proto.getAnchorY(), proto.getFrameWidth(), proto.getFrameHeight());
+        }
+        Sprite sprite = new Sprite(scene, proto, objectWidth, -1d);
         scene.addSprite(sprite);
         return sprite;
     }
 
-    Sprite copySprite(Sprite sprite) {
+    public Sprite copySprite(Sprite sprite) {
         Sprite inst = new Sprite(sprite);
+        Proto proto = sprite.getProto();
+        if (scene.getProtoByIndex(proto.getIndex()) != proto) {
+            proto = createProto(proto.getImage(), proto.getAnchorX(), proto.getAnchorY(), proto.getFrameWidth(), proto.getFrameHeight());
+            sprite.setProto(proto);
+        }
         scene.addSprite(inst);
         return inst;
-
     }
 
     public void shutdown() {
         shutdown = true;
     }
 
-    public void gc() {
-        gc.garbageCollect(scene);
+    public void setTitle(String title) {
+        output.setTitle(title);
     }
 
     private class Loop extends Thread {
@@ -298,16 +318,19 @@ public class Spriter {
                     break;
                 }
 
-                calculateFps();
+                fps.calculateFps();
 
                 do {
-                    long currentFrame = fpsCounter.get();
+                    long currentFrame = fps.getCurrentFrameCounter();
 
-                    renderer.render(scene);
+                    Image canvasImage = output.getCanvasImage();
+                    Graphics2D canvasGraphics = output.getCanvasGraphics();
+                    Image rendered = renderer.render(scene, canvasImage, canvasGraphics);
+                    output.setCanvasImage(rendered);
 
                     try {
                         synchronized (renderLock) {
-                            if (fpsCounter.get() == currentFrame) {
+                            if (fps.getCurrentFrameCounter() == currentFrame) {
                                 renderLock.wait();
                             }
                         }
@@ -315,9 +338,7 @@ public class Spriter {
                         e.printStackTrace();
                     }
                 } while (!output.sync());
-
             }
         }
     }
-
 }

@@ -2,7 +2,6 @@ package com.github.drxaos.spriter.examples;
 
 import com.github.drxaos.spriter.*;
 import com.github.drxaos.spriter.Point;
-import com.github.drxaos.spriter.Output;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -107,11 +106,10 @@ public class CustomUi {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Output window = new Output("Custom UI");
-        Spriter spriter = new Spriter(window);
+        Spriter spriter = Spriter.createDefault("Custom UI");
+        Output window = (Output) spriter.getOutput();
         window.setMinimumSize(new Dimension(400, 400));
         spriter.setDebug(true);
-        spriter.setDebugGC(true);
 
         StatusBar statusBar = new StatusBar();
         window.getContentPane().add(statusBar, BorderLayout.SOUTH);

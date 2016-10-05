@@ -11,7 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Scene renderer
  */
-public class Renderer {
+public class Renderer implements IRenderer {
+
+    private Spriter spriter;
 
     Image background;
     Graphics2D backgroundGraphics;
@@ -27,45 +29,12 @@ public class Renderer {
 
     private TreeMap<Double, ArrayList<Sprite>> layers = new TreeMap<>();
 
-
-    public com.github.drxaos.spriter.Point screenToWorld(int screenX, int screenY, int canvasWidth, int canvasHeight) {
-        double vpWidth = viewportWidth.get();
-        double vpHeight = viewportHeight.get();
-
-        double ws = canvasWidth / vpWidth;
-        double hs = canvasHeight / vpHeight;
-        double size = ws > hs ? hs : ws;
-
-        double worldX = (screenX - canvasWidth / 2) / size;
-        double worldY = (screenY - canvasHeight / 2) / size;
-
-        worldX = worldX > vpWidth / 2 ? vpWidth / 2 : worldX;
-        worldY = worldY > vpHeight / 2 ? vpHeight / 2 : worldY;
-        worldX = worldX < -vpWidth / 2 ? -vpWidth / 2 : worldX;
-        worldY = worldY < -vpHeight / 2 ? -vpHeight / 2 : worldY;
-
-        return new com.github.drxaos.spriter.Point(worldX, worldY);
-    }
-
-    public com.github.drxaos.spriter.Point worldToScreen(int worldX, int worldY, int canvasWidth, int canvasHeight) {
-        double vpWidth = viewportWidth.get();
-        double vpHeight = viewportHeight.get();
-
-        double ws = canvasWidth / vpWidth;
-        double hs = canvasHeight / vpHeight;
-        double size = ws > hs ? hs : ws;
-
-        double screenX = (canvasWidth / 2) + worldX * size;
-        double screenY = (canvasHeight / 2) + worldY * size;
-
-        return new com.github.drxaos.spriter.Point(screenX, screenY);
-    }
-
     /**
      * Images antialiasing.
      * <br/>
      * Default is true
      */
+    @Override
     public void setAntialiasing(boolean antialiasing) {
         this.antialiasing.set(antialiasing);
     }
@@ -75,31 +44,28 @@ public class Renderer {
      * <br/>
      * Default is true
      */
+    @Override
     public void setBilinearInterpolation(boolean bilinearInterpolation) {
         this.bilinearInterpolation.set(bilinearInterpolation);
     }
 
     @Override
-    public void render(Scene scene) {
-        background = output.getCanvasImage();
-        backgroundGraphics = output.getCanvasGraphics();
+    public Image render(IScene scene, Image dst, Graphics2D dstGraphics) {
+        background = dst;
+        backgroundGraphics = dstGraphics;
         render(scene, backgroundGraphics, background.getWidth(null), background.getHeight(null));
-        output.setCanvasImage(background);
-
+        return background;
     }
 
     /**
      * Show debug info
      */
+    @Override
     public void setDebug(boolean debug) {
         this.debug.set(debug);
     }
 
-    public void render(Scene scene, Graphics2D g, int width, int height) {
-        if (spriter == null) {
-            return;
-        }
-
+    public void render(IScene scene, Graphics2D g, int width, int height) {
         if (System.currentTimeMillis() - rpsCounterStart > 1000) {
             rps = rpsCounter.getAndSet(0);
             rpsCounterStart = System.currentTimeMillis();
@@ -107,14 +73,14 @@ public class Renderer {
 
         rpsCounter.incrementAndGet();
 
-        g.setColor(scene.bgColor.get());
-        g.setBackground(scene.bgColor.get());
+        g.setColor(scene.getBgColor());
+        g.setBackground(scene.getBgColor());
         g.fillRect(0, 0, width, height);
 
         fillLayers(scene);
 
-        double vpWidth = viewportWidth.get();
-        double vpHeight = viewportHeight.get();
+        double vpWidth = scene.getViewportWidth();
+        double vpHeight = scene.getViewportHeight();
         double ws = width / vpWidth;
         double hs = height / vpHeight;
         double size = ws > hs ? hs : ws;
@@ -136,10 +102,10 @@ public class Renderer {
                     px = py = pa = 0;
                 } else {
                     // rotating vector
-                    pa = -viewportShiftA.get();
+                    pa = -scene.getViewportShiftA();
 
-                    double oldX = -viewportShiftX.get();
-                    double oldY = -viewportShiftY.get();
+                    double oldX = -scene.getViewportShiftX();
+                    double oldY = -scene.getViewportShiftY();
                     double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
                     double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
 
@@ -196,9 +162,9 @@ public class Renderer {
     private void drawDebug(Graphics2D g, int drawCounter) {
         if (debug.get()) {
             g.setColor(Color.WHITE);
-            g.drawString("FPS: " + spriter.getFps(), 0, 20);
+            g.drawString("FPS: " + spriter.getFps().getFps(), 0, 20);
             g.setColor(Color.BLACK);
-            g.drawString("FPS: " + spriter.getFps(), 1, 21);
+            g.drawString("FPS: " + spriter.getFps().getFps(), 1, 21);
             g.setColor(Color.WHITE);
             g.drawString("RPS: " + rps, 0, 40);
             g.setColor(Color.BLACK);
@@ -210,9 +176,9 @@ public class Renderer {
         }
     }
 
-    private void drawBorders(Scene scene, Graphics2D g, int width, int height, double vpWidth, double vpHeight, double size) {
+    private void drawBorders(IScene scene, Graphics2D g, int width, int height, double vpWidth, double vpHeight, double size) {
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1));
-        Color color = scene.borderColor.get();
+        Color color = scene.getBorderColor();
         g.setColor(color);
         g.setBackground(color);
         double brdx = 0.5d * width - 0.5d * vpWidth * size;
@@ -243,20 +209,17 @@ public class Renderer {
         g.drawRenderedImage(sprite.snapshotGetFrame(), trans);
     }
 
-    private void fillLayers(Scene scene) {
+    private void fillLayers(IScene scene) {
         // clear layers
         for (ArrayList<Sprite> list : layers.values()) {
             list.clear();
         }
 
         // fill layers
-        synchronized (scene.sprites) {
-            for (Iterator<Sprite> iterator = scene.sprites.iterator(); iterator.hasNext(); ) {
+        synchronized (scene) {
+            for (Iterator<Sprite> iterator = scene.getSprites().iterator(); iterator.hasNext(); ) {
                 Sprite sprite = iterator.next();
-                if (sprite.snapshotGetRemove()) {
-                    // TODO garbage collection
-                    //iterator.remove();
-                } else {
+                if (!sprite.snapshotGetRemove()) {
                     Double l = sprite.snapshotGetZ();
                     ArrayList<Sprite> list = layers.get(l);
                     if (list == null) {
@@ -267,5 +230,15 @@ public class Renderer {
                 }
             }
         }
+    }
+
+    @Override
+    public void setSpriter(Spriter spriter) {
+        this.spriter = spriter;
+    }
+
+    @Override
+    public Image makeOutputImage(int w, int h, boolean alpha) {
+        return spriter.getOutput().makeVolatileImage(w, h, alpha);
     }
 }

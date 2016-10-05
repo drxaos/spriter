@@ -8,7 +8,7 @@ import javax.imageio.ImageIO;
 
 public class Simple {
     public static void main(String[] args) throws Exception {
-        Spriter spriter = new Spriter("Simple");
+        Spriter spriter = Spriter.createDefault("Simple");
 
         Sprite sprite = spriter.createProto(
                 ImageIO.read(Animation.class.getResource("/point.png")),

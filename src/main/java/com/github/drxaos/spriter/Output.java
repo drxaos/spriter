@@ -10,8 +10,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Output extends JFrame {
 
-    private Spriter spriter;
-
     private Canvas canvas;
     private BufferStrategy strategy;
     private VolatileImage background;
@@ -53,14 +51,8 @@ public class Output extends JFrame {
         canvas.setCursor(show ? defaultCursor : blankCursor);
     }
 
-    /**
-     * Create new Spriter window and start rendering.
-     *
-     * @param title Title of window
-     */
-    public Output(String title, Spriter spriter) {
-        super(title);
-        this.spriter = spriter;
+    public Output() {
+        super("Spriter engine");
 
         addWindowListener(new FrameClose());
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -97,28 +89,18 @@ public class Output extends JFrame {
         canvas.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                AtomicBoolean b = control.buttons.get(e.getButton());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.buttons.put(e.getButton(), b);
-                }
-                b.set(true);
+                control.setMousePressed(e.getButton(), true);
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                AtomicBoolean b = control.buttons.get(e.getButton());
-                if (b == null) {
-                    b = new AtomicBoolean();
-                    control.buttons.put(e.getButton(), b);
-                }
-                b.set(false);
+                control.setMousePressed(e.getButton(), false);
             }
 
             @Override
             public void mouseClicked(MouseEvent e) {
                 com.github.drxaos.spriter.Point wp = spriter.screenToWorld(e.getX(), e.getY());
-                control.c.set(new Click(wp, e.getButton()));
+                control.setMouseClicked(wp.getX(),wp.getY(),e.getButton());
             }
         });
         setFocusTraversalKeysEnabled(false);

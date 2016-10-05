@@ -19,6 +19,20 @@ public class Control {
     private Map<Integer, AtomicBoolean> buttons = new HashMap<>();
     private Map<Integer, AtomicBoolean> keys = new HashMap<>();
 
+
+    public void setMousePressed(int button, boolean pressed) {
+        AtomicBoolean b = buttons.get(button);
+        if (b == null) {
+            b = new AtomicBoolean();
+            buttons.put(button, b);
+        }
+        b.set(pressed);
+    }
+
+    public void setMouseClicked(double x, double y, int button) {
+        c.set(new Click(x, y, button));
+    }
+
     /**
      * Get current mouse X coordinate.
      */
@@ -126,4 +140,5 @@ public class Control {
         }
         System.out.println(dump);
     }
+
 }

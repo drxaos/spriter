@@ -14,6 +14,76 @@ public class Spriter {
     private GarbageCollector gc;
     private MainLoop mainLoop;
 
+    private Spriter() {
+    }
+
+    public void setOutput(Output output) {
+        this.output = output;
+    }
+
+    public void setRenderer(Renderer renderer) {
+        this.renderer = renderer;
+    }
+
+    public void setFps(Fps fps) {
+        this.fps = fps;
+    }
+
+    public void setScene(Scene scene) {
+        this.scene = scene;
+    }
+
+    public void setGc(GarbageCollector gc) {
+        this.gc = gc;
+    }
+
+    public void setMainLoop(MainLoop mainLoop) {
+        this.mainLoop = mainLoop;
+    }
+
+    public static Spriter createDefault() {
+        Spriter spriter = new Spriter();
+        Output output = new Output();
+        Renderer renderer = new Renderer();
+        Fps fps = new Fps();
+        Scene scene = new Scene();
+        GarbageCollector garbageCollector = new GarbageCollector();
+        MainLoop mainLoop = new MainLoop();
+
+        spriter.setOutput(output);
+        spriter.setRenderer(renderer);
+        spriter.setFps(fps);
+        spriter.setScene(scene);
+        spriter.setGc(garbageCollector);
+        spriter.setMainLoop(mainLoop);
+
+        mainLoop.start();
+
+        return spriter;
+    }
+
+    public static Spriter createCustom(
+            Output output,
+            Renderer renderer,
+            Fps fps,
+            Scene scene,
+            GarbageCollector garbageCollector,
+            MainLoop mainLoop
+    ) {
+        Spriter spriter = new Spriter();
+
+        spriter.setOutput(output);
+        spriter.setRenderer(renderer);
+        spriter.setFps(fps);
+        spriter.setScene(scene);
+        spriter.setGc(garbageCollector);
+        spriter.setMainLoop(mainLoop);
+
+        mainLoop.start();
+
+        return spriter;
+    }
+
     /**
      * Get control instance for this Spriter window.
      */
@@ -56,15 +126,6 @@ public class Spriter {
      */
     public void setDebugGC(boolean debugGC) {
         gc.setDebugGC(debugGC);
-    }
-
-    public Spriter(Output output) {
-        this.output = output;
-
-        scene = new Scene();
-        gc = new GarbageCollector();
-
-        renderer = new Renderer();
     }
 
     /**
@@ -230,4 +291,6 @@ public class Spriter {
     public void gc() {
         gc.garbageCollect(scene);
     }
+
+
 }

@@ -58,39 +58,39 @@ public class Proto {
         return scene;
     }
 
-    int getIndex() {
+    public int getIndex() {
         return index;
     }
 
-    void setIndex(int index) {
+    public void setIndex(int index) {
         this.index = index;
     }
 
-    BufferedImage getImage() {
+    public BufferedImage getImage() {
         return img;
     }
 
-    int getImageWidth() {
+    public int getImageWidth() {
         return imgW;
     }
 
-    int getImageHeight() {
+    public int getImageHeight() {
         return imgH;
     }
 
-    int getFrameWidth() {
+    public int getFrameWidth() {
         return frmW;
     }
 
-    int getFrameHeight() {
+    public int getFrameHeight() {
         return frmH;
     }
 
-    double getAnchorX() {
+    public double getAnchorX() {
         return imgCX;
     }
 
-    double getAnchorY() {
+    public double getAnchorY() {
         return imgCY;
     }
 

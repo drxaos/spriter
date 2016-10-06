@@ -113,33 +113,32 @@ public class Renderer implements IRenderer {
                     py = rotY;
                 }
 
+                ArrayList<Sprite> parents = new ArrayList<>();
+                parents.add(sprite);
                 Sprite parent = sprite.snapshotGetParent();
                 while (parent != null) {
                     if (!parent.snapshotGetVisible() || parent.snapshotGetRemove()) {
                         continue nextSprite;
                     }
+                    parents.add(parent);
+                    parent = parent.snapshotGetParent();
+                }
 
+                for (int i = parents.size() - 1; i >= 0; i--) {
+                    Sprite pi = parents.get(i);
                     // rotating vector
-                    double oldX = parent.snapshotGetX();
-                    double oldY = parent.snapshotGetY();
+                    double oldX = pi.snapshotGetX();
+                    double oldY = pi.snapshotGetY();
                     double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
                     double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
 
                     px += rotX;
                     py += rotY;
-                    pa += parent.snapshotGetAngle();
-
-                    parent = parent.snapshotGetParent();
+                    pa += pi.snapshotGetAngle();
                 }
 
-                // rotating vector
-                double oldX = sprite.snapshotGetX();
-                double oldY = sprite.snapshotGetY();
-                double rotX = oldX * Math.cos(pa) - oldY * Math.sin(pa);
-                double rotY = oldX * Math.sin(pa) + oldY * Math.cos(pa);
-
-                double ix = size * (px + rotX + sprite.snapshotGetDx()) + 0.5d * width;
-                double iy = size * (py + rotY + sprite.snapshotGetDy()) + 0.5d * height;
+                double ix = size * px + 0.5d * width;
+                double iy = size * py + 0.5d * height;
                 double iw = size * sprite.snapshotGetWidth();
                 double ih = size * sprite.snapshotGetHeight();
 
@@ -195,16 +194,12 @@ public class Renderer implements IRenderer {
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) sprite.snapshotGetAlpha()));
 
         AffineTransform trans = new AffineTransform();
+
         trans.translate(ix, iy);
-
-        trans.translate(-sprite.snapshotGetDx() * size, -sprite.snapshotGetDy() * size);
-        trans.rotate(pa + sprite.snapshotGetAngle());
+        trans.rotate(pa);
         trans.scale(1d * iw / sprite.snapshotGetProto().getFrameWidth(), 1d * ih / sprite.snapshotGetProto().getFrameHeight());
-        trans.translate(sprite.snapshotGetDx() * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), sprite.snapshotGetDy() * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
-
-        trans.translate(sprite.snapshotGetWidth() / 2 * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), sprite.snapshotGetHeight() / 2 * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
         trans.scale(sprite.snapshotGetFlipX() ? -1 : 1, sprite.snapshotGetFlipY() ? -1 : 1);
-        trans.translate(-sprite.snapshotGetWidth() / 2 * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), -sprite.snapshotGetHeight() / 2 * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
+        trans.translate(sprite.snapshotGetDx() * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), sprite.snapshotGetDy() * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
 
         g.drawRenderedImage(sprite.snapshotGetFrame(), trans);
     }

@@ -243,7 +243,7 @@ public class Sprite {
         scene.remove(this);
     }
 
-    double getX() {
+    public double getX() {
         return Double.longBitsToDouble(active[X]);
     }
 
@@ -258,7 +258,7 @@ public class Sprite {
         return this;
     }
 
-    double getY() {
+    public double getY() {
         return Double.longBitsToDouble(active[Y]);
     }
 
@@ -273,7 +273,7 @@ public class Sprite {
         return this;
     }
 
-    double getAngle() {
+    public double getAngle() {
         return Double.longBitsToDouble(active[ANGLE]);
     }
 
@@ -295,7 +295,7 @@ public class Sprite {
         active[DY] = Double.doubleToRawLongBits(dy);
     }
 
-    double getZ() {
+    public double getZ() {
         return Double.longBitsToDouble(active[Z]);
     }
 
@@ -310,16 +310,16 @@ public class Sprite {
         return this;
     }
 
-    int getFrameX() {
+    public int getFrameX() {
         return (int) active[FRAME_X];
     }
 
-    int getFrameY() {
+    public int getFrameY() {
         return (int) active[FRAME_Y];
     }
 
 
-    boolean getVisible() {
+    public boolean getVisible() {
         return (active[FLAGS] & FLAGS_VISIBLE) != 0;
     }
 
@@ -338,11 +338,11 @@ public class Sprite {
         return this;
     }
 
-    boolean isRemoved() {
+    public boolean isRemoved() {
         return (active[FLAGS] & FLAGS_REMOVE) != 0;
     }
 
-    boolean getHud() {
+    public boolean getHud() {
         return (active[FLAGS] & FLAGS_HUD) != 0;
     }
 
@@ -401,7 +401,7 @@ public class Sprite {
         return (active[FLAGS] & FLAGS_DIRTY) != 0;
     }
 
-    double getAlpha() {
+    public double getAlpha() {
         return Double.longBitsToDouble(active[ALPHA]);
     }
 
@@ -416,7 +416,7 @@ public class Sprite {
         return this;
     }
 
-    Sprite getParent() {
+    public Sprite getParent() {
         if (active[PARENT] < 0) {
             return null;
         }

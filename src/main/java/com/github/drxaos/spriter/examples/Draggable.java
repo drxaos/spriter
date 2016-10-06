@@ -69,7 +69,7 @@ public class Draggable {
             spriter.getScene().setViewportWidth(spriter.getOutput().getCanvasWidth());
             spriter.getScene().setViewportHeight(spriter.getOutput().getCanvasHeight());
 
-            //draggableSurface.handle();
+            draggableSurface.handle();
             cursor.setPos(control.getMousePos().plus(spriter.getScene().getViewportShift()));
 
             spriter.endFrame();

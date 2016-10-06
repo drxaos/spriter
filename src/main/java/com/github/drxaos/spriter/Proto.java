@@ -54,6 +54,10 @@ public class Proto {
         }
     }
 
+    public IScene getScene() {
+        return scene;
+    }
+
     int getIndex() {
         return index;
     }

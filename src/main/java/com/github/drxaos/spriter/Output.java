@@ -245,4 +245,9 @@ public class Output extends JFrame implements IOutput {
     public Image makeOutputImage(final int width, final int height, final boolean alpha) {
         return makeVolatileImage(width, height, alpha);
     }
+
+    @Override
+    public void setDefaultColor(Color color) {
+        setBackground(color);
+    }
 }

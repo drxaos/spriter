@@ -202,6 +202,11 @@ public class Scene implements IScene {
     }
 
     @Override
+    public Point getViewportShift() {
+        return new Point(getViewportShiftX(), getViewportShiftY());
+    }
+
+    @Override
     public Color getBgColor() {
         return bgColor;
     }

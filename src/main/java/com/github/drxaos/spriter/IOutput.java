@@ -31,4 +31,6 @@ public interface IOutput {
     Image makeOutputImage(int width, int height, boolean alpha);
 
     void setTitle(String title);
+
+    void setDefaultColor(Color color);
 }

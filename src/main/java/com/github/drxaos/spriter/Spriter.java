@@ -165,6 +165,7 @@ public class Spriter {
 
     public void setBorderColor(Color color) {
         scene.setBorderColor(color);
+        output.setDefaultColor(color);
     }
 
     /**

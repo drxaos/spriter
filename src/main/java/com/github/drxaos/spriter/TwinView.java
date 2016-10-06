@@ -135,6 +135,11 @@ public class TwinView implements IRenderer {
         }
 
         @Override
+        public Point getViewportShift() {
+            return new Point(getViewportShiftX(), getViewportShiftY());
+        }
+
+        @Override
         public Color getBgColor() {
             return scene.getBgColor();
         }

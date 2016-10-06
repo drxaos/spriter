@@ -25,6 +25,13 @@ public class Point {
         return y;
     }
 
+    public Point plus(Point point) {
+        return new Point(x + point.x, y + point.y);
+    }
+
+    public Point minus(Point point) {
+        return new Point(x - point.x, y - point.y);
+    }
 
     @Override
     public boolean equals(Object o) {

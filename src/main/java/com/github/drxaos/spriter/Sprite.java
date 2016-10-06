@@ -71,6 +71,10 @@ public class Sprite {
         System.arraycopy(sprite.snapshot, 0, snapshot, 0, snapshot.length);
     }
 
+    public IScene getScene() {
+        return scene;
+    }
+
     int getIndex() {
         return index;
     }
@@ -449,6 +453,15 @@ public class Sprite {
     void setProto(Proto proto) {
         dirty();
         active[PROTO] = proto.getIndex();
+    }
+
+    public void replaceProto(Proto newProto) {
+        if (getScene() != newProto.getScene()) {
+            throw new IllegalArgumentException("scene does not match");
+        }
+        if (getProto() != newProto) {
+            setProto(newProto);
+        }
     }
 
     void snapshot() {

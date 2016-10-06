@@ -45,6 +45,8 @@ public interface IScene {
 
     double getViewportShiftY();
 
+    Point getViewportShift();
+
     Color getBgColor();
 
     Color getBorderColor();

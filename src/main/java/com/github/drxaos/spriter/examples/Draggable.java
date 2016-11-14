@@ -21,8 +21,8 @@ public class Draggable {
             control = spriter.getControl();
 
             this.cursor = cursor;
-            handProto = spriter.createProto(Utils.loadImageFromResource("/hand.png"), 83, 110);
-            dragProto = spriter.createProto(Utils.loadImageFromResource("/drag.png"), 83, 110);
+            handProto = spriter.createProto(Utils.loadImageFromResource("/hand.png"), 12, 20);
+            dragProto = spriter.createProto(Utils.loadImageFromResource("/drag.png"), 12, 20);
         }
 
         public void handle() {
@@ -56,8 +56,8 @@ public class Draggable {
         Proto pointProto = spriter.createProto(Utils.loadImageFromResource("/point.png"), 128, 128);
         Sprite point = pointProto.newInstance(128);
 
-        Proto cursorProto = spriter.createProto(Utils.loadImageFromResource("/cursor.png"), 3, 3);
-        Sprite cursor = cursorProto.newInstance(20);
+        Proto cursorProto = spriter.createProto(Utils.loadImageFromResource("/cursor.png"), 1, 1);
+        Sprite cursor = cursorProto.newInstance(25);
 
         Control control = spriter.getControl();
 

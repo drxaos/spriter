@@ -2,6 +2,7 @@ package com.github.drxaos.spriter;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.image.RenderedImage;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.TreeMap;
@@ -189,6 +190,11 @@ public class Renderer implements IRenderer {
     }
 
     private void draw(Graphics2D g, double size, Sprite sprite, double pa, double ix, double iy, double iw, double ih) {
+        RenderedImage frameImg = sprite.snapshotGetFrame();
+        if (frameImg == null) {
+            return;
+        }
+
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialiasing.get() ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, bilinearInterpolation.get() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) sprite.snapshotGetAlpha()));
@@ -201,7 +207,7 @@ public class Renderer implements IRenderer {
         trans.scale(sprite.snapshotGetFlipX() ? -1 : 1, sprite.snapshotGetFlipY() ? -1 : 1);
         trans.translate(sprite.snapshotGetDx() * size / (1d * iw / sprite.snapshotGetProto().getFrameWidth()), sprite.snapshotGetDy() * size / (1d * ih / sprite.snapshotGetProto().getFrameHeight()));
 
-        g.drawRenderedImage(sprite.snapshotGetFrame(), trans);
+        g.drawRenderedImage(frameImg, trans);
     }
 
     private void fillLayers(IScene scene) {
@@ -216,6 +222,11 @@ public class Renderer implements IRenderer {
                 Sprite sprite = iterator.next();
                 if (!sprite.snapshotGetRemove()) {
                     Double l = sprite.snapshotGetZ();
+                    Sprite parent = sprite.getParent();
+                    while (parent != null) {
+                        l += parent.snapshotGetZ();
+                        parent = parent.getParent();
+                    }
                     ArrayList<Sprite> list = layers.get(l);
                     if (list == null) {
                         list = new ArrayList<>();

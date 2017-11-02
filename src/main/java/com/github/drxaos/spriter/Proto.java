@@ -20,9 +20,15 @@ public class Proto {
     Proto(Spriter spriter, IScene scene, BufferedImage image, double imageCenterX, double imageCenterY, int frameWidth, int frameHeight) {
         this.scene = scene;
 
-        this.img = image;
-        this.imgW = img.getWidth();
-        this.imgH = img.getHeight();
+        if (image != null) {
+            this.img = image;
+            this.imgW = img.getWidth();
+            this.imgH = img.getHeight();
+        } else {
+            this.img = null;
+            this.imgW = 1;
+            this.imgH = 1;
+        }
         this.imgCX = imageCenterX;
         this.imgCY = imageCenterY;
 

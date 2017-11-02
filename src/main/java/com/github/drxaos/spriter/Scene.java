@@ -8,6 +8,8 @@ import java.util.Collections;
 
 public class Scene implements IScene {
 
+    private final NodeProto NODE_PROTO = new NodeProto(this);
+
     private Spriter spriter;
 
     final ArrayList<Proto> protos = new ArrayList<>();
@@ -94,6 +96,9 @@ public class Scene implements IScene {
 
     @Override
     public Proto getProtoByIndex(int index) {
+        if (index == -1) {
+            return NODE_PROTO;
+        }
         return protos.get(index);
     }
 
@@ -258,6 +263,11 @@ public class Scene implements IScene {
     @Override
     public void remove(Sprite sprite) {
         removed.add(sprite);
+    }
+
+    @Override
+    public NodeProto getNodeProto() {
+        return NODE_PROTO;
     }
 
     /**

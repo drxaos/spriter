@@ -68,4 +68,6 @@ public interface IScene {
     Collection<Proto> getProtos();
 
     void remove(Sprite sprite);
+
+    NodeProto getNodeProto();
 }

@@ -299,6 +299,17 @@ public class Spriter {
         return inst;
     }
 
+    /**
+     * Create new node of sprites.
+     *
+     * @return new node
+     */
+    public Sprite createNode() {
+        Node node = new Node(scene);
+        scene.addSprite(node);
+        return node;
+    }
+
     public void shutdown() {
         shutdown = true;
     }

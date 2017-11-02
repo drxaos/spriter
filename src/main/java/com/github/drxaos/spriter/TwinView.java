@@ -22,6 +22,8 @@ public class TwinView implements IRenderer {
     double vpLeftX, vpLeftY, vpRightX, vpRightY;
 
     public class Viewport implements IScene {
+        private final NodeProto NODE_PROTO = new NodeProto(this);
+
         IScene scene;
 
         private double
@@ -192,6 +194,11 @@ public class TwinView implements IRenderer {
         @Override
         public void remove(Sprite sprite) {
             scene.remove(sprite);
+        }
+
+        @Override
+        public NodeProto getNodeProto() {
+            return NODE_PROTO;
         }
     }
 

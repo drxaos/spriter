@@ -1,0 +1,2 @@
+mvn install:install-file -DgroupId=com.github.drxaos -DartifactId=spriter -Dversion=2.0 -Dpackaging=jar -Dfile=target/spriter-2.0.jar -DlocalRepositoryPath=../mvn-repo
+mvn install:install-file -DgroupId=com.github.drxaos -DartifactId=spriter -Dversion=2.0 -Dpackaging=jar -Dfile=target/spriter-2.0-sources.jar -DlocalRepositoryPath=../mvn-repo -Dclassifier=sources
